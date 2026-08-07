@@ -42,15 +42,13 @@ func (manager *DynamicSecurity) EnsureBackend(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("read MQTT backend password: %w", err)
 	}
-	created, err := manager.ensureRole(ctx, "desk-backend")
+	_, err = manager.ensureRole(ctx, "desk-backend")
 	if err != nil {
 		return err
 	}
-	if created {
-		for _, acl := range [][]string{{"publishClientSend", "desk/#", "100", "allow"}, {"publishClientReceive", "desk/#", "100", "allow"}, {"subscribePattern", "desk/device/+/status", "100", "allow"}, {"subscribePattern", "desk/device/+/telemetry", "100", "allow"}, {"subscribePattern", "desk/device/+/acks", "100", "allow"}} {
-			if err := manager.run(ctx, append([]string{"addRoleACL", "desk-backend"}, acl...)...); err != nil {
-				return err
-			}
+	for _, acl := range [][]string{{"publishClientSend", "desk/#", "allow", "100"}, {"publishClientReceive", "desk/#", "allow", "100"}, {"subscribePattern", "desk/device/+/status", "allow", "100"}, {"subscribePattern", "desk/device/+/telemetry", "allow", "100"}, {"subscribePattern", "desk/device/+/acks", "allow", "100"}} {
+		if err := manager.ensureRoleACL(ctx, "desk-backend", acl...); err != nil {
+			return err
 		}
 	}
 	exists, err := manager.exists(ctx, "getClient", manager.config.BackendUsername)
@@ -69,29 +67,27 @@ func (manager *DynamicSecurity) EnsureBackend(ctx context.Context) error {
 }
 func (manager *DynamicSecurity) ProvisionDevice(ctx context.Context, deviceID, username, password string) error {
 	role := "device-" + deviceID
-	created, err := manager.ensureRole(ctx, role)
+	_, err := manager.ensureRole(ctx, role)
 	if err != nil {
 		return err
 	}
-	if created {
-		read := []string{"alerts", "notifications", "commands"}
-		for _, suffix := range read {
-			topic := "desk/device/" + deviceID + "/" + suffix
-			for _, kind := range []string{"subscribeLiteral", "publishClientReceive"} {
-				if err := manager.run(ctx, "addRoleACL", role, kind, topic, "100", "allow"); err != nil {
-					return err
-				}
-			}
-		}
+	read := []string{"alerts", "notifications", "commands"}
+	for _, suffix := range read {
+		topic := "desk/device/" + deviceID + "/" + suffix
 		for _, kind := range []string{"subscribeLiteral", "publishClientReceive"} {
-			if err := manager.run(ctx, "addRoleACL", role, kind, "desk/global/events", "100", "allow"); err != nil {
+			if err := manager.ensureRoleACL(ctx, role, kind, topic, "allow", "100"); err != nil {
 				return err
 			}
 		}
-		for _, suffix := range []string{"status", "telemetry", "acks"} {
-			if err := manager.run(ctx, "addRoleACL", role, "publishClientSend", "desk/device/"+deviceID+"/"+suffix, "100", "allow"); err != nil {
-				return err
-			}
+	}
+	for _, kind := range []string{"subscribeLiteral", "publishClientReceive"} {
+		if err := manager.ensureRoleACL(ctx, role, kind, "desk/global/events", "allow", "100"); err != nil {
+			return err
+		}
+	}
+	for _, suffix := range []string{"status", "telemetry", "acks"} {
+		if err := manager.ensureRoleACL(ctx, role, "publishClientSend", "desk/device/"+deviceID+"/"+suffix, "allow", "100"); err != nil {
+			return err
 		}
 	}
 	exists, err := manager.exists(ctx, "getClient", username)
@@ -141,6 +137,18 @@ func (manager *DynamicSecurity) ensureRole(ctx context.Context, role string) (bo
 		return false, nil
 	}
 	return true, manager.run(ctx, "createRole", role)
+}
+
+func (manager *DynamicSecurity) ensureRoleACL(ctx context.Context, role string, acl ...string) error {
+	err := manager.run(ctx, append([]string{"addRoleACL", role}, acl...)...)
+	if err == nil {
+		return nil
+	}
+	var commandError *commandError
+	if errors.As(err, &commandError) && strings.Contains(strings.ToLower(commandError.output), "already exists") {
+		return nil
+	}
+	return err
 }
 func (manager *DynamicSecurity) exists(ctx context.Context, command, name string) (bool, error) {
 	err := manager.run(ctx, command, name)
