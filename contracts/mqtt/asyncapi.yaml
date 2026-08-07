@@ -1,0 +1,105 @@
+asyncapi: 3.1.0
+info:
+  title: Desk Monitor Platform MQTT API
+  version: 1.0.0
+  description: Event, command and telemetry contract for desk devices.
+defaultContentType: application/json
+servers:
+  production:
+    host: monitor.example.com
+    pathname: /mqtt
+    protocol: mqttwss
+    description: MQTT over secure WebSocket through Caddy.
+    security:
+      - $ref: '#/components/securitySchemes/deviceCredentials'
+channels:
+  deviceAlerts:
+    address: desk/device/{deviceId}/alerts
+    parameters:
+      deviceId: {$ref: '#/components/parameters/deviceId'}
+    messages:
+      alert: {$ref: '#/components/messages/envelope'}
+  deviceNotifications:
+    address: desk/device/{deviceId}/notifications
+    parameters:
+      deviceId: {$ref: '#/components/parameters/deviceId'}
+    messages:
+      notification: {$ref: '#/components/messages/envelope'}
+  deviceCommands:
+    address: desk/device/{deviceId}/commands
+    parameters:
+      deviceId: {$ref: '#/components/parameters/deviceId'}
+    messages:
+      command: {$ref: '#/components/messages/envelope'}
+  deviceStatus:
+    address: desk/device/{deviceId}/status
+    parameters:
+      deviceId: {$ref: '#/components/parameters/deviceId'}
+    messages:
+      status: {$ref: '#/components/messages/envelope'}
+  deviceTelemetry:
+    address: desk/device/{deviceId}/telemetry
+    parameters:
+      deviceId: {$ref: '#/components/parameters/deviceId'}
+    messages:
+      telemetry: {$ref: '#/components/messages/envelope'}
+  deviceAcks:
+    address: desk/device/{deviceId}/acks
+    parameters:
+      deviceId: {$ref: '#/components/parameters/deviceId'}
+    messages:
+      ack: {$ref: '#/components/messages/envelope'}
+  globalEvents:
+    address: desk/global/events
+    messages:
+      globalEvent: {$ref: '#/components/messages/envelope'}
+operations:
+  receiveDeviceAlerts:
+    action: receive
+    channel: {$ref: '#/channels/deviceAlerts'}
+    messages: [{$ref: '#/channels/deviceAlerts/messages/alert'}]
+    bindings: {mqtt: {qos: 1, retain: false}}
+  receiveNotifications:
+    action: receive
+    channel: {$ref: '#/channels/deviceNotifications'}
+    messages: [{$ref: '#/channels/deviceNotifications/messages/notification'}]
+    bindings: {mqtt: {qos: 1, retain: false}}
+  receiveCommands:
+    action: receive
+    channel: {$ref: '#/channels/deviceCommands'}
+    messages: [{$ref: '#/channels/deviceCommands/messages/command'}]
+    bindings: {mqtt: {qos: 1, retain: false}}
+  sendStatus:
+    action: send
+    channel: {$ref: '#/channels/deviceStatus'}
+    messages: [{$ref: '#/channels/deviceStatus/messages/status'}]
+    bindings: {mqtt: {qos: 1, retain: true}}
+  sendTelemetry:
+    action: send
+    channel: {$ref: '#/channels/deviceTelemetry'}
+    messages: [{$ref: '#/channels/deviceTelemetry/messages/telemetry'}]
+    bindings: {mqtt: {qos: 0, retain: false}}
+  sendAcknowledgements:
+    action: send
+    channel: {$ref: '#/channels/deviceAcks'}
+    messages: [{$ref: '#/channels/deviceAcks/messages/ack'}]
+    bindings: {mqtt: {qos: 1, retain: false}}
+  receiveGlobalEvents:
+    action: receive
+    channel: {$ref: '#/channels/globalEvents'}
+    messages: [{$ref: '#/channels/globalEvents/messages/globalEvent'}]
+    bindings: {mqtt: {qos: 1, retain: false}}
+components:
+  securitySchemes:
+    deviceCredentials:
+      type: userPassword
+      description: Unique Mosquitto Dynamic Security credentials per device.
+  parameters:
+    deviceId:
+      description: Stable device identifier bound by ACL.
+  messages:
+    envelope:
+      name: MQTTEnvelope
+      contentType: application/json
+      payload:
+        $ref: ../json-schema/mqtt-envelope.schema.json

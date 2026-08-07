@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://desk-monitor.local/contracts/v1/device-config.schema.json",
+  "title": "Effective device configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "revision", "timezone", "refresh_interval_seconds", "display", "mqtt", "notification_styles"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "revision": {"type": "string", "minLength": 1, "maxLength": 64},
+    "timezone": {"type": "string", "default": "America/Argentina/Cordoba"},
+    "refresh_interval_seconds": {"type": "integer", "minimum": 30, "maximum": 3600},
+    "display": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height", "orientation", "brightness_percent"],
+      "properties": {
+        "width": {"const": 172},
+        "height": {"const": 320},
+        "orientation": {"enum": ["portrait", "landscape", "portrait_inverted", "landscape_inverted"]},
+        "brightness_percent": {"type": "integer", "minimum": 1, "maximum": 100}
+      }
+    },
+    "mqtt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "keep_alive_seconds", "topics"],
+      "properties": {
+        "url": {"type": "string", "format": "uri", "pattern": "^wss?://"},
+        "keep_alive_seconds": {"type": "integer", "minimum": 15, "maximum": 300},
+        "topics": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["alerts", "notifications", "commands", "status", "telemetry", "acks", "global_events"],
+          "properties": {
+            "alerts": {"type": "string"},
+            "notifications": {"type": "string"},
+            "commands": {"type": "string"},
+            "status": {"type": "string"},
+            "telemetry": {"type": "string"},
+            "acks": {"type": "string"},
+            "global_events": {"const": "desk/global/events"}
+          }
+        }
+      }
+    },
+    "notification_styles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["critical", "warning", "info", "success"],
+      "properties": {
+        "critical": {"$ref": "dashboard.schema.json#/$defs/notificationStyle"},
+        "warning": {"$ref": "dashboard.schema.json#/$defs/notificationStyle"},
+        "info": {"$ref": "dashboard.schema.json#/$defs/notificationStyle"},
+        "success": {"$ref": "dashboard.schema.json#/$defs/notificationStyle"}
+      }
+    }
+  }
+}
+

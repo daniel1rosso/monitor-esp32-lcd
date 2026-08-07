@@ -1,0 +1,279 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://desk-monitor.local/contracts/v1/platform-config.schema.json",
+  "title": "Desk Monitor Platform YAML configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "platform", "storage", "http", "devices", "products", "profiles", "collectors", "integrations"],
+  "properties": {
+    "version": {"const": 1},
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "timezone", "public_url"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "timezone": {"type": "string", "minLength": 1},
+        "public_url": {"type": "string", "format": "uri"}
+      }
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["driver", "retention"],
+      "properties": {
+        "driver": {"enum": ["sqlite", "postgres"]},
+        "sqlite": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "busy_timeout", "wal"],
+          "properties": {
+            "path": {"type": "string"},
+            "busy_timeout": {"$ref": "#/$defs/duration"},
+            "wal": {"type": "boolean"}
+          }
+        },
+        "retention": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["market_quotes", "deployments", "alerts", "weather", "telemetry", "webhook_deliveries", "collector_runs"],
+          "properties": {
+            "market_quotes": {"$ref": "#/$defs/duration"},
+            "deployments": {"$ref": "#/$defs/duration"},
+            "alerts": {"$ref": "#/$defs/duration"},
+            "weather": {"$ref": "#/$defs/duration"},
+            "telemetry": {"$ref": "#/$defs/duration"},
+            "webhook_deliveries": {"$ref": "#/$defs/duration"},
+            "collector_runs": {"$ref": "#/$defs/duration"}
+          }
+        }
+      }
+    },
+    "http": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["read_timeout", "write_timeout", "idle_timeout", "trusted_proxies", "allowed_origins"],
+      "properties": {
+        "read_timeout": {"$ref": "#/$defs/duration"},
+        "write_timeout": {"$ref": "#/$defs/duration"},
+        "idle_timeout": {"$ref": "#/$defs/duration"},
+        "trusted_proxies": {"type": "array", "items": {"type": "string"}},
+        "allowed_origins": {"type": "array", "items": {"type": "string", "format": "uri"}}
+      }
+    },
+    "devices": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["access_token_ttl", "alert_duration", "dashboard_ttl", "refresh_interval", "max_screens", "max_dashboard_bytes", "default_profile", "display", "notification_styles"],
+      "properties": {
+        "access_token_ttl": {"$ref": "#/$defs/duration"},
+        "alert_duration": {"$ref": "#/$defs/duration"},
+        "dashboard_ttl": {"$ref": "#/$defs/duration"},
+        "refresh_interval": {"$ref": "#/$defs/duration"},
+        "max_screens": {"type": "integer", "minimum": 1, "maximum": 12},
+        "max_dashboard_bytes": {"type": "integer", "minimum": 4096, "maximum": 65536},
+        "default_profile": {"$ref": "#/$defs/key"},
+        "display": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["width", "height", "orientation", "brightness_percent"],
+          "properties": {
+            "width": {"const": 172},
+            "height": {"const": 320},
+            "orientation": {"enum": ["portrait", "landscape", "portrait_inverted", "landscape_inverted"]},
+            "brightness_percent": {"type": "integer", "minimum": 1, "maximum": 100}
+          }
+        },
+        "notification_styles": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["critical", "warning", "info", "success"],
+          "properties": {
+            "critical": {"$ref": "#/$defs/notificationStyle"},
+            "warning": {"$ref": "#/$defs/notificationStyle"},
+            "info": {"$ref": "#/$defs/notificationStyle"},
+            "success": {"$ref": "#/$defs/notificationStyle"}
+          }
+        }
+      }
+    },
+    "products": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "name", "enabled"],
+        "properties": {
+          "key": {"$ref": "#/$defs/key"},
+          "name": {"type": "string", "minLength": 1, "maxLength": 100},
+          "enabled": {"type": "boolean"}
+        }
+      }
+    },
+    "profiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "name", "screens"],
+        "properties": {
+          "key": {"$ref": "#/$defs/key"},
+          "name": {"type": "string", "minLength": 1, "maxLength": 100},
+          "screens": {"type": "array", "maxItems": 12, "items": {"$ref": "#/$defs/profileScreen"}}
+        }
+      }
+    },
+    "collectors": {
+      "type": "object",
+      "required": ["cotizacion_ya", "open_meteo", "http_json"],
+      "properties": {
+        "cotizacion_ya": {
+          "type": "object",
+          "unevaluatedProperties": false,
+          "allOf": [
+            {"$ref": "#/$defs/scheduledCollector"},
+            {
+              "type": "object",
+              "required": ["base_url", "symbols"],
+              "properties": {
+                "base_url": {"type": "string", "format": "uri", "pattern": "^https://"},
+                "symbols": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}}
+              }
+            }
+          ]
+        },
+        "open_meteo": {
+          "type": "object",
+          "unevaluatedProperties": false,
+          "allOf": [
+            {"$ref": "#/$defs/scheduledCollector"},
+            {
+              "type": "object",
+              "required": ["base_url", "location"],
+              "properties": {
+                "base_url": {"type": "string", "format": "uri", "pattern": "^https://"},
+                "location": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["key", "name", "latitude", "longitude", "timezone"],
+                  "properties": {
+                    "key": {"$ref": "#/$defs/key"},
+                    "name": {"type": "string"},
+                    "latitude": {"type": "number", "minimum": -90, "maximum": 90},
+                    "longitude": {"type": "number", "minimum": -180, "maximum": 180},
+                    "timezone": {"type": "string"}
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "http_json": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["key", "enabled", "product_key", "interval", "timeout", "url", "allow", "mappings"],
+            "properties": {
+              "key": {"$ref": "#/$defs/key"},
+              "enabled": {"type": "boolean"},
+              "product_key": {"$ref": "#/$defs/key"},
+              "interval": {"$ref": "#/$defs/duration"},
+              "timeout": {"$ref": "#/$defs/duration"},
+              "url": {"type": "string", "format": "uri", "pattern": "^https://"},
+              "allow": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["hosts", "cidrs"],
+                "properties": {
+                  "hosts": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+                  "cidrs": {"type": "array", "items": {"type": "string"}}
+                }
+              },
+              "headers": {"type": "object", "additionalProperties": {"type": "string"}},
+              "mappings": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/mapping"}}
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "integrations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["github", "uptime_kuma"],
+      "properties": {
+        "github": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["webhook_secret", "actions_token"],
+          "properties": {
+            "webhook_secret": {"$ref": "#/$defs/secretRef"},
+            "actions_token": {"$ref": "#/$defs/secretRef"}
+          }
+        },
+        "uptime_kuma": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["token"],
+          "properties": {"token": {"$ref": "#/$defs/secretRef"}}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "key": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
+    "duration": {"type": "string", "pattern": "^[1-9][0-9]*(ms|s|m|h)$"},
+    "secretRef": {"type": "string", "pattern": "^\\$\\{secret:[A-Z][A-Z0-9_]*\\}$"},
+    "notificationStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["color", "icon", "led_rgb", "sound"],
+      "properties": {
+        "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+        "icon": {"type": "string", "minLength": 1, "maxLength": 32},
+        "led_rgb": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+        "sound": {"enum": ["none", "future_default"]}
+      }
+    },
+    "profileScreen": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "priority", "duration", "enabled"],
+      "properties": {
+        "id": {"$ref": "#/$defs/key"},
+        "type": {"enum": ["overview", "product_status", "service_status", "alert", "deployment", "market", "weather", "metric_list", "message"]},
+        "priority": {"type": "integer", "minimum": 0, "maximum": 100},
+        "duration": {"$ref": "#/$defs/duration"},
+        "enabled": {"type": "boolean"},
+        "config": {"type": "object", "additionalProperties": true}
+      }
+    },
+    "scheduledCollector": {
+      "type": "object",
+      "required": ["enabled", "interval", "timeout"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "interval": {"$ref": "#/$defs/duration"},
+        "timeout": {"$ref": "#/$defs/duration"}
+      }
+    },
+    "mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target", "field", "path", "type", "required"],
+      "properties": {
+        "target": {"enum": ["product_status", "service_status", "metric"]},
+        "product_key": {"$ref": "#/$defs/key"},
+        "service_key": {"$ref": "#/$defs/key"},
+        "metric_key": {"$ref": "#/$defs/key"},
+        "field": {"type": "string"},
+        "path": {"type": "string", "pattern": "^\\$"},
+        "type": {"enum": ["string", "number", "integer", "boolean", "datetime"]},
+        "required": {"type": "boolean"},
+        "scale": {"type": "number"},
+        "default": {}
+      }
+    }
+  }
+}

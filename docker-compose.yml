@@ -1,0 +1,190 @@
+name: desk-monitor
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  init: true
+  stop_grace_period: 20s
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "3"
+  deploy:
+    resources:
+      limits:
+        cpus: ${DESK_CPU_LIMIT:-1.0}
+        memory: ${DESK_MEMORY_LIMIT:-512M}
+
+services:
+  caddy:
+    <<: *service-defaults
+    image: caddy:2.11.4-alpine
+    environment:
+      DESK_SITE_ADDRESS: ${DESK_SITE_ADDRESS:-:8080}
+      DESK_CADDY_HEALTH_URL: ${DESK_CADDY_HEALTH_URL:-http://127.0.0.1:8080/api/v1/health}
+    ports:
+      - "${DESK_BIND_ADDRESS:-127.0.0.1}:${DESK_LOCAL_HTTP_PORT:-8180}:8080"
+    volumes:
+      - ./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [edge, internal]
+    depends_on:
+      backend: {condition: service_healthy}
+      frontend: {condition: service_healthy}
+      mosquitto: {condition: service_healthy}
+    healthcheck:
+      test: [CMD-SHELL, "wget --quiet --tries=1 --spider $${DESK_CADDY_HEALTH_URL} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+
+  frontend:
+    <<: *service-defaults
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=16m
+      - /var/run:size=1m
+      - /tmp:size=16m
+    networks: [edge]
+
+  backend:
+    <<: *service-defaults
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        VERSION: ${DESK_VERSION:-dev}
+        COMMIT: ${DESK_COMMIT:-unknown}
+        BUILT_AT: ${DESK_BUILT_AT:-unknown}
+    environment:
+      DESK_CONFIG_PATH: /config/platform.yaml
+      DESK_DATA_DIR: /data
+      DESK_HTTP_ADDRESS: :8080
+      DESK_MANAGEMENT_ADDRESS: :9090
+      DESK_JWT_PRIVATE_KEY_PATH: /data/jwt-ed25519.pem
+      DESK_BOOTSTRAP_ADMIN_EMAIL: ${DESK_BOOTSTRAP_ADMIN_EMAIL:-}
+      DESK_BOOTSTRAP_ADMIN_PASSWORD: ${DESK_BOOTSTRAP_ADMIN_PASSWORD:-}
+      DESK_LOG_LEVEL: ${DESK_LOG_LEVEL:-info}
+      DATABASE_URL: ${DATABASE_URL:-}
+      REDIS_URL: redis://redis:6379/0
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      MQTT_URL: tcp://mosquitto:1883
+      DESK_MQTT_PUBLIC_URL: ${DESK_MQTT_PUBLIC_URL:-ws://localhost:9001/mqtt}
+      MQTT_HOST: mosquitto
+      MQTT_PORT: 1883
+      MQTT_ADMIN_PASSWORD_FILE: /run/mosquitto/admin-password
+      MQTT_BACKEND_PASSWORD_FILE: /run/mosquitto/backend-password
+      TZ: America/Argentina/Cordoba
+    volumes:
+      - ./contracts/config/platform.example.yaml:/config/platform.yaml:ro
+      - backend_data:/data
+      - mosquitto_data:/run/mosquitto:ro
+    read_only: true
+    group_add:
+      - "1883"
+    tmpfs:
+      - /tmp:size=32m
+    networks: [internal]
+    depends_on:
+      redis: {condition: service_healthy}
+      mosquitto: {condition: service_healthy}
+
+  mosquitto-init:
+    image: eclipse-mosquitto:2.1.2-alpine
+    user: "0:0"
+    restart: "no"
+    environment:
+      MOSQUITTO_ADMIN_PASSWORD: ${MOSQUITTO_ADMIN_PASSWORD:-}
+    entrypoint: [/bin/sh, /bootstrap/init.sh]
+    volumes:
+      - ./infrastructure/mosquitto/init.sh:/bootstrap/init.sh:ro
+      - mosquitto_data:/mosquitto/data
+    networks: [internal]
+    security_opt:
+      - no-new-privileges:true
+
+  mosquitto:
+    <<: *service-defaults
+    image: eclipse-mosquitto:2.1.2-alpine
+    volumes:
+      - ./infrastructure/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./infrastructure/mosquitto/healthcheck.sh:/healthcheck.sh:ro
+      - mosquitto_data:/mosquitto/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=8m
+    networks: [edge, internal]
+    depends_on:
+      mosquitto-init: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD, /bin/sh, /healthcheck.sh]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+
+  redis:
+    <<: *service-defaults
+    image: redis:8.10.0-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    entrypoint: [/bin/sh, /bootstrap/entrypoint.sh]
+    volumes:
+      - ./infrastructure/redis/entrypoint.sh:/bootstrap/entrypoint.sh:ro
+      - ./infrastructure/redis/healthcheck.sh:/healthcheck.sh:ro
+      - redis_data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=8m
+    networks: [internal]
+    healthcheck:
+      test: [CMD, /bin/sh, /healthcheck.sh]
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 5
+
+  prometheus:
+    <<: *service-defaults
+    image: prom/prometheus:v3.13.2
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    volumes:
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    read_only: true
+    tmpfs:
+      - /tmp:size=8m
+    networks: [internal]
+    depends_on:
+      backend: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, /bin/promtool, check, healthy]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+
+networks:
+  edge:
+  internal:
+    internal: true
+
+volumes:
+  backend_data:
+  caddy_config:
+  caddy_data:
+  mosquitto_data:
+  prometheus_data:
+  redis_data:

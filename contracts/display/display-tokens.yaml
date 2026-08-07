@@ -1,0 +1,41 @@
+version: 1
+canvas:
+  width: 172
+  height: 320
+  safe_area: {top: 8, right: 8, bottom: 8, left: 8}
+  radius: 14
+layout:
+  gap: {xs: 4, sm: 6, md: 10, lg: 14}
+  header_height: 34
+  footer_height: 20
+typography:
+  family: Inter
+  numeric_family: JetBrains Mono
+  sizes: {caption: 9, body: 11, label: 10, title: 14, metric: 32, hero: 42}
+  line_heights: {compact: 1.1, normal: 1.3}
+colors:
+  background: "#070A10"
+  surface: "#111722"
+  surface_elevated: "#182130"
+  border: "#263247"
+  text_primary: "#F4F7FB"
+  text_secondary: "#9EABBD"
+  text_muted: "#64748B"
+  operational: "#30D158"
+  degraded: "#FFCC00"
+  outage: "#FF453A"
+  maintenance: "#BF5AF2"
+  unknown: "#8E8E93"
+  info: "#0A84FF"
+  critical: "#FF3B30"
+motion:
+  screen_transition_ms: 220
+  alert_transition_ms: 160
+  progress_tick_ms: 100
+content_limits:
+  title_lines: 2
+  body_lines: 4
+  list_items: 5
+  product_name_characters: 32
+  service_name_characters: 32
+  message_characters: 160

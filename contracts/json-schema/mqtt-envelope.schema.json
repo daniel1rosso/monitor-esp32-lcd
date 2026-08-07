@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://desk-monitor.local/contracts/v1/mqtt-envelope.schema.json",
+  "title": "MQTT message envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "event_id", "type", "occurred_at", "expires_at", "correlation_id", "data"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "event_id": {"type": "string", "minLength": 1, "maxLength": 64},
+    "type": {"enum": ["alert.raised", "alert.resolved", "notification.created", "dashboard.invalidated", "config.invalidated", "command.requested", "device.status", "device.telemetry", "command.acknowledged", "global.event"]},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": ["string", "null"], "format": "date-time"},
+    "correlation_id": {"type": "string", "minLength": 1, "maxLength": 64},
+    "data": {
+      "oneOf": [
+        {"$ref": "#/$defs/alertData"},
+        {"$ref": "#/$defs/notificationData"},
+        {"$ref": "#/$defs/invalidationData"},
+        {"$ref": "#/$defs/commandData"},
+        {"$ref": "#/$defs/statusData"},
+        {"$ref": "#/$defs/telemetryData"},
+        {"$ref": "#/$defs/ackData"},
+        {"$ref": "#/$defs/globalData"}
+      ]
+    }
+  },
+  "allOf": [
+    {"if": {"properties": {"type": {"enum": ["alert.raised", "alert.resolved"]}}}, "then": {"properties": {"data": {"$ref": "#/$defs/alertData"}}}},
+    {"if": {"properties": {"type": {"const": "notification.created"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/notificationData"}}}},
+    {"if": {"properties": {"type": {"enum": ["dashboard.invalidated", "config.invalidated"]}}}, "then": {"properties": {"data": {"$ref": "#/$defs/invalidationData"}}}},
+    {"if": {"properties": {"type": {"const": "command.requested"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/commandData"}}}},
+    {"if": {"properties": {"type": {"const": "device.status"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/statusData"}}}},
+    {"if": {"properties": {"type": {"const": "device.telemetry"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/telemetryData"}}}},
+    {"if": {"properties": {"type": {"const": "command.acknowledged"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/ackData"}}}},
+    {"if": {"properties": {"type": {"const": "global.event"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/globalData"}}}}
+  ],
+  "$defs": {
+    "alertData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "alert_id", "severity", "title", "message", "duration_ms", "style"],
+      "properties": {
+        "kind": {"const": "alert"},
+        "alert_id": {"type": "string"},
+        "severity": {"enum": ["critical", "warning", "info", "success"]},
+        "title": {"type": "string", "maxLength": 48},
+        "message": {"type": "string", "maxLength": 160},
+        "duration_ms": {"type": "integer", "minimum": 3000, "maximum": 60000},
+        "style": {"$ref": "dashboard.schema.json#/$defs/notificationStyle"}
+      }
+    },
+    "notificationData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "priority", "title", "message", "duration_ms", "style"],
+      "properties": {
+        "kind": {"const": "notification"},
+        "priority": {"enum": ["critical", "warning", "info", "success"]},
+        "title": {"type": "string", "maxLength": 48},
+        "message": {"type": "string", "maxLength": 160},
+        "duration_ms": {"type": "integer", "minimum": 3000, "maximum": 60000},
+        "style": {"$ref": "dashboard.schema.json#/$defs/notificationStyle"}
+      }
+    },
+    "invalidationData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "revision"],
+      "properties": {
+        "kind": {"enum": ["dashboard_invalidation", "config_invalidation"]},
+        "revision": {"type": "string", "minLength": 1, "maxLength": 64}
+      }
+    },
+    "commandData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "command_id", "command"],
+      "properties": {
+        "kind": {"const": "command"},
+        "command_id": {"type": "string"},
+        "command": {"enum": ["refresh_dashboard", "refresh_config", "restart", "identify"]},
+        "arguments": {"type": "object", "additionalProperties": true}
+      }
+    },
+    "statusData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "status"],
+      "properties": {
+        "kind": {"const": "status"},
+        "status": {"enum": ["online", "offline"]},
+        "firmware_version": {"type": "string", "maxLength": 64},
+        "ip": {"type": "string", "maxLength": 64}
+      }
+    },
+    "telemetryData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "uptime_seconds", "free_heap_bytes", "wifi_rssi_dbm"],
+      "properties": {
+        "kind": {"const": "telemetry"},
+        "uptime_seconds": {"type": "integer", "minimum": 0},
+        "free_heap_bytes": {"type": "integer", "minimum": 0},
+        "wifi_rssi_dbm": {"type": "integer", "minimum": -120, "maximum": 0},
+        "dashboard_revision": {"type": "string"},
+        "config_revision": {"type": "string"}
+      }
+    },
+    "ackData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "command_id", "status"],
+      "properties": {
+        "kind": {"const": "ack"},
+        "command_id": {"type": "string"},
+        "status": {"enum": ["accepted", "completed", "failed", "unsupported"]},
+        "detail": {"type": "string", "maxLength": 120}
+      }
+    },
+    "globalData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name", "message"],
+      "properties": {
+        "kind": {"const": "global"},
+        "name": {"type": "string", "maxLength": 64},
+        "message": {"type": "string", "maxLength": 160}
+      }
+    }
+  }
+}

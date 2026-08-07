@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "01J4X68DBEK1JTC7JR2AMY60Z4",
+  "type": "alert.raised",
+  "occurred_at": "2026-08-06T15:03:00Z",
+  "expires_at": "2026-08-06T15:08:00Z",
+  "correlation_id": "01J4X68CYPQ4Y8RVZ5MVM6XPKA",
+  "data": {
+    "kind": "alert",
+    "alert_id": "01J4X686KGXM3DHJX2T0YCMBTA",
+    "severity": "critical",
+    "title": "Servicio caído",
+    "message": "Potrerito API no responde",
+    "duration_ms": 15000,
+    "style": {"color": "#FF3B30", "icon": "alert-octagon", "led_rgb": "#FF0000", "sound": "future_default"}
+  }
+}
+

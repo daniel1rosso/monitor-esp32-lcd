@@ -1,0 +1,102 @@
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at DATETIME NOT NULL);
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, role TEXT NOT NULL,
+  created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL
+);
+CREATE TABLE IF NOT EXISTS refresh_sessions (
+  id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), family_id TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE, expires_at DATETIME NOT NULL, revoked_at DATETIME, created_at DATETIME NOT NULL
+);
+CREATE TABLE IF NOT EXISTS products (
+  id TEXT PRIMARY KEY, key TEXT NOT NULL UNIQUE, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
+  enabled BOOLEAN NOT NULL, created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL, archived_at DATETIME
+);
+CREATE TABLE IF NOT EXISTS services (
+  id TEXT PRIMARY KEY, product_id TEXT NOT NULL REFERENCES products(id), key TEXT NOT NULL, name TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT '', endpoint TEXT, enabled BOOLEAN NOT NULL, created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL, archived_at DATETIME, UNIQUE(product_id, key)
+);
+CREATE TABLE IF NOT EXISTS service_statuses (
+  id TEXT PRIMARY KEY, service_id TEXT NOT NULL REFERENCES services(id), status TEXT NOT NULL,
+  latency_ms INTEGER, reason TEXT NOT NULL DEFAULT '', observed_at DATETIME NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_service_status_current ON service_statuses(service_id, observed_at DESC);
+CREATE TABLE IF NOT EXISTS screen_profiles (
+  id TEXT PRIMARY KEY, key TEXT NOT NULL UNIQUE, name TEXT NOT NULL, revision INTEGER NOT NULL,
+  created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL
+);
+CREATE TABLE IF NOT EXISTS profile_screens (
+  id TEXT PRIMARY KEY, profile_id TEXT NOT NULL REFERENCES screen_profiles(id) ON DELETE CASCADE,
+  position INTEGER NOT NULL, screen_key TEXT NOT NULL, type TEXT NOT NULL, priority INTEGER NOT NULL,
+  duration_ms INTEGER NOT NULL, enabled BOOLEAN NOT NULL, config_json TEXT NOT NULL DEFAULT '{}',
+  UNIQUE(profile_id, position), UNIQUE(profile_id, screen_key)
+);
+CREATE TABLE IF NOT EXISTS devices (
+  id TEXT PRIMARY KEY, device_id TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
+  profile_id TEXT NOT NULL REFERENCES screen_profiles(id), state TEXT NOT NULL,
+  firmware_version TEXT, last_seen_at DATETIME, overrides_json TEXT NOT NULL DEFAULT '{}',
+  created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL
+);
+CREATE TABLE IF NOT EXISTS device_tokens (
+  id TEXT PRIMARY KEY, device_id TEXT NOT NULL REFERENCES devices(id), secret_hash TEXT NOT NULL,
+  generation INTEGER NOT NULL, expires_at DATETIME, revoked_at DATETIME, created_at DATETIME NOT NULL,
+  UNIQUE(device_id, generation)
+);
+CREATE TABLE IF NOT EXISTS device_mqtt_credentials (
+  id TEXT PRIMARY KEY, device_id TEXT NOT NULL REFERENCES devices(id), username TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL, generation INTEGER NOT NULL, revoked_at DATETIME, created_at DATETIME NOT NULL,
+  UNIQUE(device_id, generation)
+);
+CREATE TABLE IF NOT EXISTS alerts (
+  id TEXT PRIMARY KEY, product_id TEXT REFERENCES products(id), service_id TEXT REFERENCES services(id),
+  fingerprint TEXT NOT NULL, priority TEXT NOT NULL, state TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL,
+  opened_at DATETIME NOT NULL, acknowledged_at DATETIME, resolved_at DATETIME, expires_at DATETIME, updated_at DATETIME NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_alert_open_fingerprint ON alerts(fingerprint) WHERE state != 'resolved';
+CREATE TABLE IF NOT EXISTS deployments (
+  id TEXT PRIMARY KEY, product_id TEXT REFERENCES products(id), provider TEXT NOT NULL, external_id TEXT NOT NULL,
+  repository TEXT NOT NULL, branch TEXT NOT NULL, workflow TEXT NOT NULL, status TEXT NOT NULL,
+  commit_sha TEXT NOT NULL, commit_message TEXT NOT NULL DEFAULT '', author TEXT NOT NULL,
+  started_at DATETIME NOT NULL, finished_at DATETIME, html_url TEXT, UNIQUE(provider, external_id)
+);
+CREATE TABLE IF NOT EXISTS market_quotes (
+  id TEXT PRIMARY KEY, provider TEXT NOT NULL, symbol TEXT NOT NULL, quote_asset TEXT NOT NULL,
+  bid REAL, ask REAL, last REAL NOT NULL, change_percent REAL NOT NULL, observed_at DATETIME NOT NULL,
+  UNIQUE(provider, symbol, observed_at)
+);
+CREATE INDEX IF NOT EXISTS idx_market_quote_current ON market_quotes(provider, symbol, observed_at DESC);
+CREATE TABLE IF NOT EXISTS weather_observations (
+  id TEXT PRIMARY KEY, location_key TEXT NOT NULL, location_name TEXT NOT NULL, temperature_c REAL NOT NULL,
+  apparent_temperature_c REAL NOT NULL, humidity_percent REAL, weather_code INTEGER NOT NULL, wind_kmh REAL,
+  daily_min_c REAL, daily_max_c REAL, precipitation_probability REAL, observed_at DATETIME NOT NULL,
+  UNIQUE(location_key, observed_at)
+);
+CREATE TABLE IF NOT EXISTS notification_history (
+  id TEXT PRIMARY KEY, event_id TEXT NOT NULL, destination TEXT NOT NULL, channel TEXT NOT NULL,
+  priority TEXT NOT NULL, status TEXT NOT NULL, created_at DATETIME NOT NULL,
+  UNIQUE(event_id, destination, channel)
+);
+CREATE TABLE IF NOT EXISTS configurations (
+  id TEXT PRIMARY KEY, namespace TEXT NOT NULL, key TEXT NOT NULL, value_json TEXT NOT NULL,
+  value_type TEXT NOT NULL, revision INTEGER NOT NULL, editable BOOLEAN NOT NULL,
+  created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL, UNIQUE(namespace, key)
+);
+CREATE TABLE IF NOT EXISTS outbox_events (
+  id TEXT PRIMARY KEY, event_id TEXT NOT NULL UNIQUE, topic TEXT NOT NULL, payload BLOB NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0, next_attempt_at DATETIME NOT NULL, published_at DATETIME, created_at DATETIME NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_outbox_pending ON outbox_events(published_at, next_attempt_at);
+CREATE TABLE IF NOT EXISTS webhook_deliveries (
+  id TEXT PRIMARY KEY, provider TEXT NOT NULL, delivery_id TEXT NOT NULL, payload_hash TEXT NOT NULL,
+  status TEXT NOT NULL, received_at DATETIME NOT NULL, processed_at DATETIME, UNIQUE(provider, delivery_id)
+);
+CREATE TABLE IF NOT EXISTS collector_runs (
+  id TEXT PRIMARY KEY, collector TEXT NOT NULL, product_id TEXT REFERENCES products(id), status TEXT NOT NULL,
+  started_at DATETIME NOT NULL, finished_at DATETIME, error_code TEXT, records_written INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id TEXT PRIMARY KEY, actor_type TEXT NOT NULL, actor_id TEXT, action TEXT NOT NULL,
+  resource_type TEXT NOT NULL, resource_id TEXT, request_id TEXT, occurred_at DATETIME NOT NULL
+);

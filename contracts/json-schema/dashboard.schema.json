@@ -1,0 +1,299 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://desk-monitor.local/contracts/v1/dashboard.schema.json",
+  "title": "Device dashboard snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "revision", "generated_at", "expires_at", "screens"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "revision": {"type": "string", "minLength": 1, "maxLength": 64},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "screens": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {"$ref": "#/$defs/screen"}
+    }
+  },
+  "$defs": {
+    "screenBase": {
+      "type": "object",
+      "required": ["id", "type", "priority", "duration_ms", "title", "payload"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1, "maxLength": 64},
+        "type": {"type": "string"},
+        "priority": {"type": "integer", "minimum": 0, "maximum": 100},
+        "duration_ms": {"type": "integer", "minimum": 3000, "maximum": 60000},
+        "title": {"type": "string", "maxLength": 48},
+        "payload": {"type": "object"}
+      }
+    },
+    "screen": {
+      "oneOf": [
+        {"$ref": "#/$defs/overviewScreen"},
+        {"$ref": "#/$defs/productScreen"},
+        {"$ref": "#/$defs/serviceScreen"},
+        {"$ref": "#/$defs/alertScreen"},
+        {"$ref": "#/$defs/deploymentScreen"},
+        {"$ref": "#/$defs/marketScreen"},
+        {"$ref": "#/$defs/weatherScreen"},
+        {"$ref": "#/$defs/metricListScreen"},
+        {"$ref": "#/$defs/messageScreen"}
+      ]
+    },
+    "overviewScreen": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "allOf": [
+        {"$ref": "#/$defs/screenBase"},
+        {
+          "type": "object",
+          "properties": {
+            "type": {"const": "overview"},
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["status", "products", "services", "open_alerts"],
+              "properties": {
+                "status": {"$ref": "#/$defs/serviceState"},
+                "products": {"type": "integer", "minimum": 0},
+                "services": {"type": "integer", "minimum": 0},
+                "open_alerts": {"type": "integer", "minimum": 0},
+                "subtitle": {"type": "string", "maxLength": 80}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "productScreen": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "allOf": [
+        {"$ref": "#/$defs/screenBase"},
+        {
+          "type": "object",
+          "properties": {
+            "type": {"const": "product_status"},
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["product_key", "name", "status", "services_up", "services_total"],
+              "properties": {
+                "product_key": {"type": "string", "maxLength": 64},
+                "name": {"type": "string", "maxLength": 48},
+                "status": {"$ref": "#/$defs/serviceState"},
+                "services_up": {"type": "integer", "minimum": 0},
+                "services_total": {"type": "integer", "minimum": 0},
+                "detail": {"type": "string", "maxLength": 80}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "serviceScreen": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "allOf": [
+        {"$ref": "#/$defs/screenBase"},
+        {
+          "type": "object",
+          "properties": {
+            "type": {"const": "service_status"},
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["name", "status"],
+              "properties": {
+                "name": {"type": "string", "maxLength": 48},
+                "status": {"$ref": "#/$defs/serviceState"},
+                "latency_ms": {"type": ["integer", "null"], "minimum": 0},
+                "last_change_at": {"type": ["string", "null"], "format": "date-time"},
+                "detail": {"type": "string", "maxLength": 80}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "alertScreen": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "allOf": [
+        {"$ref": "#/$defs/screenBase"},
+        {
+          "type": "object",
+          "properties": {
+            "type": {"const": "alert"},
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["alert_id", "severity", "message", "style"],
+              "properties": {
+                "alert_id": {"type": "string", "maxLength": 64},
+                "severity": {"$ref": "#/$defs/semanticPriority"},
+                "message": {"type": "string", "maxLength": 160},
+                "source": {"type": "string", "maxLength": 48},
+                "style": {"$ref": "#/$defs/notificationStyle"}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "deploymentScreen": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "allOf": [
+        {"$ref": "#/$defs/screenBase"},
+        {
+          "type": "object",
+          "properties": {
+            "type": {"const": "deployment"},
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["repository", "branch", "workflow", "status", "commit_short", "author"],
+              "properties": {
+                "repository": {"type": "string", "maxLength": 64},
+                "branch": {"type": "string", "maxLength": 48},
+                "workflow": {"type": "string", "maxLength": 48},
+                "status": {"enum": ["queued", "in_progress", "success", "failure", "cancelled"]},
+                "commit_short": {"type": "string", "maxLength": 12},
+                "author": {"type": "string", "maxLength": 40},
+                "occurred_at": {"type": "string", "format": "date-time"}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "marketScreen": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "allOf": [
+        {"$ref": "#/$defs/screenBase"},
+        {
+          "type": "object",
+          "properties": {
+            "type": {"const": "market"},
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["symbol", "display_value", "change_percent", "trend"],
+              "properties": {
+                "symbol": {"type": "string", "maxLength": 16},
+                "display_value": {"type": "string", "maxLength": 24},
+                "bid": {"type": ["string", "null"], "maxLength": 24},
+                "ask": {"type": ["string", "null"], "maxLength": 24},
+                "change_percent": {"type": "number"},
+                "trend": {"enum": ["up", "down", "flat"]},
+                "stale": {"type": "boolean"}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "weatherScreen": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "allOf": [
+        {"$ref": "#/$defs/screenBase"},
+        {
+          "type": "object",
+          "properties": {
+            "type": {"const": "weather"},
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["location", "temperature_c", "condition_icon", "daily_min_c", "daily_max_c"],
+              "properties": {
+                "location": {"type": "string", "maxLength": 48},
+                "temperature_c": {"type": "number"},
+                "apparent_temperature_c": {"type": "number"},
+                "condition_icon": {"type": "string", "maxLength": 32},
+                "daily_min_c": {"type": "number"},
+                "daily_max_c": {"type": "number"},
+                "precipitation_probability_percent": {"type": "integer", "minimum": 0, "maximum": 100},
+                "stale": {"type": "boolean"}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "metricListScreen": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "allOf": [
+        {"$ref": "#/$defs/screenBase"},
+        {
+          "type": "object",
+          "properties": {
+            "type": {"const": "metric_list"},
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["items"],
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "maxItems": 5,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["label", "value"],
+                    "properties": {
+                      "label": {"type": "string", "maxLength": 32},
+                      "value": {"type": "string", "maxLength": 24},
+                      "trend": {"enum": ["up", "down", "flat", "none"]},
+                      "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "messageScreen": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "allOf": [
+        {"$ref": "#/$defs/screenBase"},
+        {
+          "type": "object",
+          "properties": {
+            "type": {"const": "message"},
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["message", "style"],
+              "properties": {
+                "message": {"type": "string", "maxLength": 180},
+                "style": {"$ref": "#/$defs/notificationStyle"}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "serviceState": {"enum": ["operational", "degraded", "outage", "maintenance", "unknown"]},
+    "semanticPriority": {"enum": ["critical", "warning", "info", "success"]},
+    "notificationStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["color", "icon", "led_rgb", "sound"],
+      "properties": {
+        "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+        "icon": {"type": "string", "minLength": 1, "maxLength": 32},
+        "led_rgb": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+        "sound": {"type": "string", "enum": ["none", "future_default"]}
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+.DS_Store
+.idea/
+.vscode/
+.cache/
+
+**/node_modules/
+**/dist/
+**/coverage/
+**/*.tsbuildinfo
+
+backend/desk-monitor
+backend/coverage.out
+
+firmware/build/
+firmware/build-host/
+firmware/sdkconfig
+firmware/sdkconfig.old

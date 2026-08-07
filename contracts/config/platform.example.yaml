@@ -1,0 +1,111 @@
+version: 1
+platform:
+  name: Desk Monitor Platform
+  timezone: America/Argentina/Cordoba
+  public_url: http://localhost:8180
+
+storage:
+  driver: sqlite
+  sqlite:
+    path: /data/desk-monitor.db
+    busy_timeout: 5s
+    wal: true
+  retention:
+    market_quotes: 8760h
+    deployments: 8760h
+    alerts: 8760h
+    weather: 720h
+    telemetry: 720h
+    webhook_deliveries: 720h
+    collector_runs: 720h
+
+http:
+  read_timeout: 10s
+  write_timeout: 15s
+  idle_timeout: 60s
+  trusted_proxies: []
+  allowed_origins:
+    - http://localhost:8180
+
+devices:
+  access_token_ttl: 15m
+  alert_duration: 15s
+  dashboard_ttl: 15m
+  refresh_interval: 5m
+  max_screens: 12
+  max_dashboard_bytes: 65536
+  default_profile: operations
+  display:
+    width: 172
+    height: 320
+    orientation: portrait
+    brightness_percent: 80
+  notification_styles:
+    critical: {color: "#FF3B30", icon: alert-octagon, led_rgb: "#FF0000", sound: future_default}
+    warning: {color: "#FFCC00", icon: alert-triangle, led_rgb: "#FFAA00", sound: none}
+    info: {color: "#0A84FF", icon: info, led_rgb: "#0066FF", sound: none}
+    success: {color: "#30D158", icon: check-circle, led_rgb: "#00FF55", sound: none}
+
+products:
+  - key: potrerito
+    name: Potrerito
+    enabled: true
+  - key: freshcode
+    name: FreshCode
+    enabled: true
+  - key: facturas
+    name: Facturas-FreshCode
+    enabled: true
+
+profiles:
+  - key: operations
+    name: Operaciones
+    screens:
+      - {id: overview-main, type: overview, priority: 50, duration: 8s, enabled: true}
+      - {id: products-main, type: product_status, priority: 40, duration: 8s, enabled: true}
+      - {id: services-main, type: service_status, priority: 40, duration: 8s, enabled: true}
+      - {id: deployments-main, type: deployment, priority: 30, duration: 8s, enabled: true}
+      - {id: markets-main, type: market, priority: 20, duration: 8s, enabled: true}
+      - {id: weather-main, type: weather, priority: 20, duration: 8s, enabled: true}
+
+collectors:
+  cotizacion_ya:
+    enabled: true
+    interval: 5m
+    timeout: 10s
+    base_url: https://cotizacionya.ar/api/v1
+    symbols: [blue, BTCUSDT, XRPUSDT]
+  open_meteo:
+    enabled: true
+    interval: 15m
+    timeout: 10s
+    base_url: https://api.open-meteo.com/v1
+    location:
+      key: rio-cuarto
+      name: Río Cuarto
+      latitude: -33.1307
+      longitude: -64.3499
+      timezone: America/Argentina/Cordoba
+  http_json:
+    - key: potrerito-status
+      enabled: false
+      product_key: potrerito
+      interval: 1m
+      timeout: 10s
+      url: https://potrerito.internal/api/monitor
+      allow:
+        hosts: [potrerito.internal]
+        cidrs: []
+      headers:
+        Authorization: "Bearer ${secret:POTRERITO_API_TOKEN}"
+      mappings:
+        - {target: service_status, service_key: api, field: status, path: "$.status", type: string, required: true}
+        - {target: service_status, service_key: api, field: latency_ms, path: "$.latency_ms", type: number, required: false}
+        - {target: metric, metric_key: active-users, field: value, path: "$.metrics.active_users", type: integer, required: false}
+
+integrations:
+  github:
+    webhook_secret: "${secret:GITHUB_WEBHOOK_SECRET}"
+    actions_token: "${secret:GITHUB_ACTIONS_TOKEN}"
+  uptime_kuma:
+    token: "${secret:UPTIME_KUMA_TOKEN}"

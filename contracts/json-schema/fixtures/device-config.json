@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "revision": "01J4X5R8E2M0P7C4YQ6H1V9N3K",
+  "timezone": "America/Argentina/Cordoba",
+  "refresh_interval_seconds": 300,
+  "display": {
+    "width": 172,
+    "height": 320,
+    "orientation": "portrait",
+    "brightness_percent": 80
+  },
+  "mqtt": {
+    "url": "wss://monitor.example.com/mqtt",
+    "keep_alive_seconds": 60,
+    "topics": {
+      "alerts": "desk/device/desk-01/alerts",
+      "notifications": "desk/device/desk-01/notifications",
+      "commands": "desk/device/desk-01/commands",
+      "status": "desk/device/desk-01/status",
+      "telemetry": "desk/device/desk-01/telemetry",
+      "acks": "desk/device/desk-01/acks",
+      "global_events": "desk/global/events"
+    }
+  },
+  "notification_styles": {
+    "critical": {"color": "#FF3B30", "icon": "alert-octagon", "led_rgb": "#FF0000", "sound": "future_default"},
+    "warning": {"color": "#FFCC00", "icon": "alert-triangle", "led_rgb": "#FFAA00", "sound": "none"},
+    "info": {"color": "#0A84FF", "icon": "info", "led_rgb": "#0066FF", "sound": "none"},
+    "success": {"color": "#30D158", "icon": "check-circle", "led_rgb": "#00FF55", "sound": "none"}
+  }
+}
+

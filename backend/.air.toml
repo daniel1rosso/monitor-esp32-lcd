@@ -1,0 +1,15 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "go build -o ./tmp/desk-monitor ./cmd/desk-monitor"
+bin = "./tmp/desk-monitor server"
+delay = 500
+exclude_dir = ["tmp", "vendor"]
+include_ext = ["go", "yaml", "yml"]
+kill_delay = "1s"
+send_interrupt = true
+
+[log]
+time = true
+
