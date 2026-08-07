@@ -72,7 +72,7 @@ services:
       - "1883"
     tmpfs:
       - /tmp:size=32m
-    networks: [internal]
+    networks: [edge, internal]
     depends_on:
       redis: {condition: service_healthy}
       mosquitto: {condition: service_healthy}
