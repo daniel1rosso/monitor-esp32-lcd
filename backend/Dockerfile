@@ -18,8 +18,8 @@ COPY . .
 ARG VERSION=dev
 ARG COMMIT=unknown
 ARG BUILT_AT=unknown
-RUN CGO_ENABLED=0 go test ./... && \
-    CGO_ENABLED=0 go build -trimpath \
+RUN CGO_ENABLED=0 go test -tags=nomsgpack ./... && \
+    CGO_ENABLED=0 go build -tags=nomsgpack -trimpath \
       -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.builtAt=${BUILT_AT}" \
       -o /out/desk-monitor ./cmd/desk-monitor
 
