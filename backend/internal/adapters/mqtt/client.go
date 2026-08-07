@@ -188,7 +188,19 @@ func (manager *DynamicSecurity) run(ctx context.Context, args ...string) error {
 	if err != nil {
 		return &commandError{output: string(output), cause: err}
 	}
+	if outputHasError(output) {
+		return &commandError{output: string(output)}
+	}
 	return nil
+}
+
+func outputHasError(output []byte) bool {
+	for _, line := range strings.Split(string(output), "\n") {
+		if strings.Contains(strings.ToLower(line), "error:") {
+			return true
+		}
+	}
+	return false
 }
 
 type Publisher struct{ client paho.Client }
@@ -198,7 +210,7 @@ func NewPublisher(config Config) (*Publisher, error) {
 	if err != nil {
 		return nil, err
 	}
-	options := paho.NewClientOptions().AddBroker(config.BrokerURL).SetClientID(config.BackendUsername + "-publisher").SetUsername(config.BackendUsername).SetPassword(password).SetAutoReconnect(true).SetConnectRetry(true).SetConnectRetryInterval(time.Second).SetOrderMatters(false)
+	options := paho.NewClientOptions().AddBroker(config.BrokerURL).SetClientID(config.BackendUsername).SetUsername(config.BackendUsername).SetPassword(password).SetAutoReconnect(true).SetConnectRetry(false).SetOrderMatters(false)
 	client := paho.NewClient(options)
 	token := client.Connect()
 	if !token.WaitTimeout(10 * time.Second) {
