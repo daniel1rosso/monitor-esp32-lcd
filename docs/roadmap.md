@@ -14,7 +14,7 @@ no contiene lógica de aplicación.
 
 ## 3. Docker — completada
 
-Dockerfiles multi-stage, Compose, Caddy, Redis, Mosquitto Dynamic Security,
+Dockerfiles multi-stage, Compose, Nginx de host, Redis, Mosquitto Dynamic Security,
 Prometheus, healthchecks, volúmenes, `.env.example`, Makefile y desarrollo con Air.
 Gate: `docker compose up -d`, reinicios y persistencia verificados.
 

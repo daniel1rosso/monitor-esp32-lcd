@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help contracts backend frontend firmware-host compose-config docker-build up down logs dev check
+.PHONY: help contracts backend frontend firmware-host compose-config docker-build up prod-config prod-up down logs dev check
 
 help:
 	@echo "Desk Monitor Platform"
@@ -11,6 +11,8 @@ help:
 	@echo "  make compose-config Validate the resolved Compose model"
 	@echo "  make docker-build   Build backend and frontend images"
 	@echo "  make up             Build and start the local stack"
+	@echo "  make prod-config    Validate production Compose and environment"
+	@echo "  make prod-up        Build and start the production stack"
 	@echo "  make down           Stop the stack without deleting data"
 	@echo "  make logs           Follow stack logs"
 	@echo "  make dev            Start with Air and Vite development overrides"
@@ -40,6 +42,12 @@ docker-build:
 
 up:
 	docker compose up -d --build
+
+prod-config:
+	docker compose --env-file .env.production -f docker-compose.yml -f docker-compose.prod.yml config --quiet
+
+prod-up:
+	docker compose --env-file .env.production -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 down:
 	docker compose down

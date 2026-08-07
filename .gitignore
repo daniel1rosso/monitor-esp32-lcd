@@ -2,6 +2,10 @@
 .idea/
 .vscode/
 .cache/
+.env
+.env.*
+!.env.example
+!.env.*.example
 
 **/node_modules/
 **/dist/

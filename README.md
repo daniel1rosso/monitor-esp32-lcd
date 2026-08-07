@@ -37,11 +37,13 @@ make check
 
 ```bash
 docker compose up -d --build
-curl http://localhost:8180/api/v1/health
+curl http://127.0.0.1:9096/api/v1/health
 ```
 
-El panel queda disponible en `http://localhost:8180` y el simulador en la sección
-**Simulador LCD**. Para habilitar el acceso administrativo inicial, definir
+El frontend queda en `127.0.0.1:9095`, la API en `127.0.0.1:9096` y MQTT WebSocket
+en `127.0.0.1:9097`. En producción, el Nginx instalado en el host publica esas
+rutas bajo `monitor.danielalbertorosso.com.ar`. Para habilitar el acceso
+administrativo inicial, definir
 `DESK_BOOTSTRAP_ADMIN_EMAIL` y `DESK_BOOTSTRAP_ADMIN_PASSWORD` antes del primer
 arranque del volumen de datos.
 

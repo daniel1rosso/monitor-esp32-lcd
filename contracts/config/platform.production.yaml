@@ -2,7 +2,7 @@ version: 1
 platform:
   name: Desk Monitor Platform
   timezone: America/Argentina/Cordoba
-  public_url: http://localhost:9095
+  public_url: https://monitor.danielalbertorosso.com.ar
 
 storage:
   driver: sqlite
@@ -25,7 +25,7 @@ http:
   idle_timeout: 60s
   trusted_proxies: []
   allowed_origins:
-    - http://localhost:9095
+    - https://monitor.danielalbertorosso.com.ar
 
 devices:
   access_token_ttl: 15m

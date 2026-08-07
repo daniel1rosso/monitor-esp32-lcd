@@ -25,13 +25,14 @@ C4Context
 
 ```mermaid
 flowchart LR
-  Browser -->|HTTPS/SSE| Caddy
-  ESP -->|HTTPS / MQTT over WSS| Caddy
-  GitHub -->|HMAC webhook| Caddy
-  Kuma[Uptime Kuma] -->|Bearer webhook| Caddy
-  Caddy --> Frontend
-  Caddy --> API[Go API + Scheduler]
-  Caddy --> Mosquitto
+  Browser -->|HTTPS| Cloudflare
+  ESP -->|HTTPS / MQTT over WSS| Cloudflare
+  GitHub -->|HMAC webhook| Cloudflare
+  Kuma[Uptime Kuma] -->|Bearer webhook| Cloudflare
+  Cloudflare -->|HTTP :80| Nginx[Host Nginx]
+  Nginx -->|127.0.0.1:9095| Frontend
+  Nginx -->|127.0.0.1:9096| API[Go API + Scheduler]
+  Nginx -->|127.0.0.1:9097| Mosquitto
   API --> SQLite[(SQLite WAL)]
   API --> Redis[(Redis)]
   API --> Mosquitto[(Mosquitto)]
@@ -39,10 +40,10 @@ flowchart LR
   Prometheus --> API
 ```
 
-Caddy es el único borde HTTP. Mosquitto expone MQTT/WebSocket por el mismo borde;
-su listener TCP interno solo es visible en la red de Compose. El backend es un
-único proceso en v1 para evitar escritores SQLite distribuidos. El mismo binario
-ofrecerá los comandos `server`, `migrate`, `admin` y `backup`.
+Nginx es el borde HTTP del host y los tres puertos de aplicación están enlazados
+exclusivamente a loopback. Cloudflare termina HTTPS/WSS. El listener MQTT TCP solo
+es visible en la red de Compose. El backend es un único proceso en v1 para evitar
+escritores SQLite distribuidos.
 
 ## Componentes del backend
 
@@ -100,4 +101,3 @@ diseño pueda crecer a varias réplicas, pero una caída de Redis no invalida la
   breaker.
 - Todas las llamadas externas tienen timeout, límite de bytes, retry con jitter y
   métricas por resultado.
-

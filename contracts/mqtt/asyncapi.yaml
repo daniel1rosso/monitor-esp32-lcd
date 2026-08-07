@@ -9,7 +9,7 @@ servers:
     host: monitor.example.com
     pathname: /mqtt
     protocol: mqttwss
-    description: MQTT over secure WebSocket through Caddy.
+    description: MQTT over secure WebSocket through Cloudflare and the host Nginx.
     security:
       - $ref: '#/components/securitySchemes/deviceCredentials'
 channels:

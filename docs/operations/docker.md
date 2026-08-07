@@ -5,77 +5,92 @@
 ```bash
 docker compose up -d --build
 docker compose ps
-curl http://localhost:8180/api/v1/health
+curl http://127.0.0.1:9096/api/v1/health
 ```
 
-Caddy es el único servicio HTTP publicado. Redis, Mosquitto TCP, Prometheus y el
-listener de management del backend permanecen en una red Docker marcada `internal`.
-MQTT para dispositivos usa WebSocket en `/mqtt` a través de Caddy.
-
-Servicios:
+Docker publica únicamente tres puertos sobre loopback: frontend `9095`, API
+`9096` y MQTT WebSocket `9097`. Nginx está instalado en el host, escucha HTTP/80
+y publica el dominio; Cloudflare termina HTTPS/WSS. Redis, Mosquitto TCP,
+Prometheus y el listener de management permanecen en la red Docker `internal`.
 
 | Servicio | Responsabilidad | Persistencia |
 |---|---|---|
-| caddy | borde, headers, compresión, HTTPS/WSS | certificados/config |
 | frontend | assets estáticos SPA | ninguna |
 | backend | API pública, probes y métricas | `/data` |
 | redis | cache/coordinación | AOF |
 | mosquitto | MQTT y Dynamic Security | estado/credenciales |
 | prometheus | scraping y series | TSDB 15 días |
 
-`docker compose down` conserva datos. No usar `down -v` en un entorno con datos.
+`docker compose down` conserva los datos. No usar `down -v` en un entorno con
+datos reales.
 
-## Configuración
+## Producción
 
-Los defaults funcionan sin `.env`. Para personalizar:
-
-```bash
-cp .env.example .env
-docker compose config --quiet
-docker compose up -d --build
-```
-
-En producción, establecer un dominio en `DESK_SITE_ADDRESS`, cargar secretos reales
-y usar el override que publica HTTP, HTTPS y HTTP/3:
+Crear el archivo privado de variables y completar sus credenciales:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+cp .env.production.example .env.production
 ```
 
-El Compose base enlaza 8180 únicamente a loopback. Para pruebas desde un ESP32 en
-la LAN se puede definir temporalmente `DESK_BIND_ADDRESS=0.0.0.0`; en producción los
-dispositivos deben usar el dominio HTTPS/WSS.
+Validar y desplegar:
+
+```bash
+docker compose --env-file .env.production \
+  -f docker-compose.yml -f docker-compose.prod.yml config --quiet
+
+docker compose --env-file .env.production \
+  -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+También están disponibles `make prod-config` y `make prod-up`.
+
+Instalar la configuración del Nginx anfitrión:
+
+```bash
+sudo cp deploy/nginx/monitor.danielalbertorosso.com.ar.conf /etc/nginx/conf.d/desk-monitor.conf
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+Cloudflare debe resolver `monitor.danielalbertorosso.com.ar` hacia el servidor,
+usar el proxy naranja, redirigir HTTP público a HTTPS y conectarse al origen por
+HTTP. Los dispositivos utilizan siempre estas URLs públicas:
+
+```text
+https://monitor.danielalbertorosso.com.ar
+wss://monitor.danielalbertorosso.com.ar/mqtt
+```
+
+El salto Cloudflare-origen queda sin cifrar por decisión del despliegue actual.
+El firewall debería aceptar HTTP/80 únicamente desde los rangos de Cloudflare o
+migrarse posteriormente a Cloudflare Tunnel.
+
+## Secretos
+
+`.env.production` está ignorado por Git. La plantilla versionada no contiene
+secretos. Para el primer arranque de un volumen nuevo se completan conjuntamente
+`DESK_BOOTSTRAP_ADMIN_EMAIL` y `DESK_BOOTSTRAP_ADMIN_PASSWORD`.
 
 Mosquitto inicializa Dynamic Security una sola vez. Si no se proporciona
-`MOSQUITTO_ADMIN_PASSWORD`, guarda una clave aleatoria con permisos 0600 dentro del
-volumen `mosquitto_data`. Cambiar la variable después no rota una instalación ya
-inicializada; la rotación será responsabilidad del caso de uso de dispositivos.
-
-## Desarrollo
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
-```
-
-El override usa Air para Go y Vite con HMR. Los servicios de infraestructura son los
-mismos que en producción para evitar entornos ficticios.
+`MOSQUITTO_ADMIN_PASSWORD`, genera y persiste una clave aleatoria en
+`mosquitto_data`. Cambiar la variable después no rota una instalación existente.
 
 ## Diagnóstico
 
 ```bash
 docker compose ps
-docker compose logs backend caddy mosquitto redis prometheus
+docker compose logs backend frontend mosquitto redis prometheus
 docker compose exec backend desk-monitor probe
-docker compose exec prometheus promtool check config /etc/prometheus/prometheus.yml
+curl http://127.0.0.1:9095/
+curl http://127.0.0.1:9096/api/v1/health
+sudo nginx -t
 ```
 
-El health público solo revela `status` y timestamp. Readiness detallado y métricas
-no pasan por Caddy. Los healthchecks de Compose esperan a Redis/Mosquitto antes del
-backend y al backend/frontend antes del proxy.
+Readiness detallado, métricas y MQTT TCP no se publican por Nginx. Los
+healthchecks esperan a Redis y Mosquitto antes de iniciar el backend.
 
-## Datos y backups
+## Backups
 
-Los seis volúmenes tienen nombres estables bajo el proyecto `desk-monitor`. Copiar
-el archivo SQLite mientras exista un writer no será un backup válido. El comando de
-backup online y su prueba de restauración se implementan junto con persistencia en
-la etapa Backend; hasta entonces el volumen backend no contiene datos funcionales.
+SQLite reside en el volumen `backend_data`. Copiar el archivo mientras existe un
+writer no constituye un backup válido. El procedimiento productivo debe usar la
+API online de SQLite, generar checksum y comprobar periódicamente una restauración.

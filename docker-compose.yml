@@ -18,35 +18,13 @@ x-service-defaults: &service-defaults
         memory: ${DESK_MEMORY_LIMIT:-512M}
 
 services:
-  caddy:
-    <<: *service-defaults
-    image: caddy:2.11.4-alpine
-    environment:
-      DESK_SITE_ADDRESS: ${DESK_SITE_ADDRESS:-:8080}
-      DESK_CADDY_HEALTH_URL: ${DESK_CADDY_HEALTH_URL:-http://127.0.0.1:8080/api/v1/health}
-    ports:
-      - "${DESK_BIND_ADDRESS:-127.0.0.1}:${DESK_LOCAL_HTTP_PORT:-8180}:8080"
-    volumes:
-      - ./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    networks: [edge, internal]
-    depends_on:
-      backend: {condition: service_healthy}
-      frontend: {condition: service_healthy}
-      mosquitto: {condition: service_healthy}
-    healthcheck:
-      test: [CMD-SHELL, "wget --quiet --tries=1 --spider $${DESK_CADDY_HEALTH_URL} || exit 1"]
-      interval: 10s
-      timeout: 5s
-      start_period: 10s
-      retries: 5
-
   frontend:
     <<: *service-defaults
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    ports:
+      - "${DESK_FRONTEND_BIND_ADDRESS:-127.0.0.1}:${DESK_FRONTEND_PORT:-9095}:8080"
     read_only: true
     tmpfs:
       - /var/cache/nginx:size=16m
@@ -64,6 +42,8 @@ services:
         VERSION: ${DESK_VERSION:-dev}
         COMMIT: ${DESK_COMMIT:-unknown}
         BUILT_AT: ${DESK_BUILT_AT:-unknown}
+    ports:
+      - "${DESK_BACKEND_BIND_ADDRESS:-127.0.0.1}:${DESK_BACKEND_PORT:-9096}:8080"
     environment:
       DESK_CONFIG_PATH: /config/platform.yaml
       DESK_DATA_DIR: /data
@@ -77,7 +57,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       MQTT_URL: tcp://mosquitto:1883
-      DESK_MQTT_PUBLIC_URL: ${DESK_MQTT_PUBLIC_URL:-ws://localhost:9001/mqtt}
+      DESK_MQTT_PUBLIC_URL: ${DESK_MQTT_PUBLIC_URL:-ws://localhost:9097/mqtt}
       MQTT_HOST: mosquitto
       MQTT_PORT: 1883
       MQTT_ADMIN_PASSWORD_FILE: /run/mosquitto/admin-password
@@ -114,6 +94,8 @@ services:
   mosquitto:
     <<: *service-defaults
     image: eclipse-mosquitto:2.1.2-alpine
+    ports:
+      - "${DESK_MQTT_BIND_ADDRESS:-127.0.0.1}:${DESK_MQTT_WS_PORT:-9097}:9001"
     volumes:
       - ./infrastructure/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - ./infrastructure/mosquitto/healthcheck.sh:/healthcheck.sh:ro
@@ -183,8 +165,6 @@ networks:
 
 volumes:
   backend_data:
-  caddy_config:
-  caddy_data:
   mosquitto_data:
   prometheus_data:
   redis_data:

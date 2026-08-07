@@ -74,10 +74,13 @@ function validateJSONContracts() {
 function validateConfiguration() {
   const validator = createValidator()
   const schema = loadJSON(path.join(root, 'contracts/config/platform-config.schema.json'))
-  const config = YAML.parse(
-    fs.readFileSync(path.join(root, 'contracts/config/platform.example.yaml'), 'utf8'),
-  )
-  assertValid(validator, schema, config, 'platform.example.yaml')
+  const filenames = ['platform.example.yaml', 'platform.production.yaml']
+  for (const filename of filenames) {
+    const value = YAML.parse(fs.readFileSync(path.join(root, 'contracts/config', filename), 'utf8'))
+    assertValid(validator, schema, value, filename)
+  }
+
+  const config = YAML.parse(fs.readFileSync(path.join(root, 'contracts/config/platform.example.yaml'), 'utf8'))
 
   config.unexpected = true
   if (validator.validate(schema, config)) {
@@ -145,4 +148,3 @@ validateConfiguration()
 validateMarkdownLinks()
 const summary = await validateAPIs()
 console.log(`Contracts valid: ${summary.paths} OpenAPI paths, JSON Schema, AsyncAPI and Markdown`)
-

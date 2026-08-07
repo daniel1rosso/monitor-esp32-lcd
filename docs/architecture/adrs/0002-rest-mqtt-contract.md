@@ -11,10 +11,10 @@ evento MQTT nunca es la única copia del estado durable.
 
 Alertas y comandos usan QoS 1, ID idempotente y expiración. El ESP32 interrumpe la
 rotación ante `critical`, y al reconectar restaura el estado mediante REST. MQTT
-externo viaja como WSS a través de Caddy.
+externo viaja como WSS terminado por Cloudflare y atraviesa el Nginx del host hacia
+el listener WebSocket de Mosquitto enlazado exclusivamente a loopback.
 
 ## Consecuencias
 
 El firmware tolera eventos duplicados y desconexiones sin reconstruir estado desde
 un log MQTT. El backend puede cambiar fuentes y reglas sin actualizar dispositivos.
-

@@ -25,10 +25,11 @@ Los valores operacionales iniciales serán:
 
 ## Compose productivo
 
-Servicios previstos para la etapa Docker: Caddy, frontend estático, backend,
-Redis, Mosquitto y Prometheus. Solo Caddy publica HTTP/HTTPS. MQTT externo usa
-WebSocket seguro a través de Caddy; backend y broker se comunican por la red
-interna. Volúmenes separados conservan SQLite, claves, Redis y estado de Mosquitto.
+Servicios Docker: frontend estático, backend, Redis, Mosquitto y Prometheus. El
+Nginx instalado en el host publica HTTP/80 y consume frontend, API y MQTT WebSocket
+por los puertos loopback 9095, 9096 y 9097. Cloudflare termina HTTPS/WSS; backend y
+broker se comunican por la red interna. Volúmenes separados conservan SQLite,
+claves, Redis y estado de Mosquitto.
 
 `docker compose up -d` debe iniciar en modo local sin secretos inseguros embebidos.
 El backend genera claves internas persistentes cuando faltan y el primer admin se
@@ -40,7 +41,7 @@ externos antes de exponer el host.
 - Liveness confirma proceso y event loop.
 - Readiness exige configuración, migraciones, DB y claves válidas.
 - `/api/v1/health` expone únicamente estado general y timestamp.
-- Liveness/readiness detallados viven en el listener interno y Caddy no los publica.
+- Liveness/readiness detallados viven en el listener interno y Nginx no los publica.
 - `/metrics` expone latencia HTTP, requests, colectores, cache, outbox, MQTT,
   dispositivos y estado de integraciones.
 - Logs JSON incluyen timestamp UTC, level, service, request/correlation ID y actor.
