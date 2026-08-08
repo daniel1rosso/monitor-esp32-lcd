@@ -75,6 +75,14 @@ products:
     name: Facturas-FreshCode
     enabled: true
     services: [{key: web, name: Sitio web, kind: http, enabled: true}]
+  - key: uptime-kuma
+    name: Uptime Kuma
+    enabled: true
+    services: [{key: web, name: Panel de monitoreo, kind: http, enabled: true}]
+  - key: adguard-home
+    name: AdGuard Home
+    enabled: true
+    services: [{key: web, name: Panel DNS, kind: http, enabled: true}]
   - key: mi-web
     name: MI-WEB
     enabled: true
@@ -150,6 +158,9 @@ integrations:
       - {name: CotizacionYa, product_key: cotizacionya, service_key: web}
       - {name: CRM - FreshCode, product_key: crm-freshcode, service_key: web}
       - {name: FreshCode, product_key: freshcode, service_key: web}
+      - {name: Facturas-FreshCode, product_key: facturas, service_key: web}
+      - {name: Uptime Kuma, product_key: uptime-kuma, service_key: web}
+      - {name: AdGuard Home, product_key: adguard-home, service_key: web}
       - {name: MI-WEB, product_key: mi-web, service_key: web}
       - {name: Potrerito, product_key: potrerito, service_key: web}
       - {name: Recursos Mente Activa, product_key: recursos-mente-activa, service_key: web}
