@@ -809,7 +809,7 @@ components:
       required: [email, password]
       properties:
         email: {type: string, format: email, maxLength: 254}
-        password: {type: string, minLength: 12, maxLength: 1024}
+        password: {type: string, minLength: 8, maxLength: 1024}
     AccessTokenResponse:
       type: object
       required: [access_token, token_type, expires_in, user]

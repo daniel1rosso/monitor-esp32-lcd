@@ -94,8 +94,16 @@ type NotificationStyle struct {
 }
 
 type Product struct {
+	Key      string              `yaml:"key"`
+	Name     string              `yaml:"name"`
+	Enabled  bool                `yaml:"enabled"`
+	Services []ConfiguredService `yaml:"services"`
+}
+
+type ConfiguredService struct {
 	Key     string `yaml:"key"`
 	Name    string `yaml:"name"`
+	Kind    string `yaml:"kind"`
 	Enabled bool   `yaml:"enabled"`
 }
 
@@ -185,7 +193,14 @@ type GitHub struct {
 }
 
 type UptimeKuma struct {
-	Token string `yaml:"token"`
+	Token    string          `yaml:"token"`
+	Monitors []UptimeMonitor `yaml:"monitors"`
+}
+
+type UptimeMonitor struct {
+	Name       string `yaml:"name"`
+	ProductKey string `yaml:"product_key"`
+	ServiceKey string `yaml:"service_key"`
 }
 
 func Load(path string) (Config, error) {
@@ -271,6 +286,7 @@ func (c Config) Validate() error {
 		}
 	}
 	products := make(map[string]struct{}, len(c.Products))
+	productServices := make(map[string]map[string]struct{}, len(c.Products))
 	for _, product := range c.Products {
 		if !keyPattern.MatchString(product.Key) || strings.TrimSpace(product.Name) == "" {
 			return fmt.Errorf("invalid product %q", product.Key)
@@ -279,6 +295,17 @@ func (c Config) Validate() error {
 			return fmt.Errorf("duplicate product key %q", product.Key)
 		}
 		products[product.Key] = struct{}{}
+		services := map[string]struct{}{}
+		for _, service := range product.Services {
+			if !keyPattern.MatchString(service.Key) || strings.TrimSpace(service.Name) == "" || strings.TrimSpace(service.Kind) == "" {
+				return fmt.Errorf("invalid service %q for product %q", service.Key, product.Key)
+			}
+			if _, exists := services[service.Key]; exists {
+				return fmt.Errorf("duplicate service %q for product %q", service.Key, product.Key)
+			}
+			services[service.Key] = struct{}{}
+		}
+		productServices[product.Key] = services
 	}
 	profiles := make(map[string]struct{}, len(c.Profiles))
 	screenTypes := map[string]bool{"overview": true, "product_status": true, "service_status": true, "alert": true, "deployment": true, "market": true, "weather": true, "metric_list": true, "message": true}
@@ -332,6 +359,23 @@ func (c Config) Validate() error {
 		if !secretPattern.MatchString(reference) {
 			return fmt.Errorf("invalid secret reference for %s", name)
 		}
+	}
+	monitorNames := map[string]struct{}{}
+	for _, monitor := range c.Integrations.UptimeKuma.Monitors {
+		if strings.TrimSpace(monitor.Name) == "" || !keyPattern.MatchString(monitor.ProductKey) || !keyPattern.MatchString(monitor.ServiceKey) {
+			return fmt.Errorf("invalid uptime monitor mapping %q", monitor.Name)
+		}
+		if _, exists := products[monitor.ProductKey]; !exists {
+			return fmt.Errorf("uptime monitor %q references unknown product %q", monitor.Name, monitor.ProductKey)
+		}
+		if _, exists := productServices[monitor.ProductKey][monitor.ServiceKey]; !exists {
+			return fmt.Errorf("uptime monitor %q references unknown service %q", monitor.Name, monitor.ServiceKey)
+		}
+		key := strings.ToLower(strings.TrimSpace(monitor.Name))
+		if _, exists := monitorNames[key]; exists {
+			return fmt.Errorf("duplicate uptime monitor %q", monitor.Name)
+		}
+		monitorNames[key] = struct{}{}
 	}
 	return nil
 }

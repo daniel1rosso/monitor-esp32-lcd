@@ -98,7 +98,7 @@ func (api *API) archiveService(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 func serviceDTO(value domain.Service) gin.H {
-	return gin.H{"id": value.ID, "product_id": value.ProductID, "key": value.Key, "name": value.Name, "status": value.Status, "latency_ms": value.LatencyMS, "updated_at": value.UpdatedAt}
+	return gin.H{"id": value.ID, "product_id": value.ProductID, "key": value.Key, "name": value.Name, "kind": value.Kind, "endpoint": value.Endpoint, "enabled": value.Enabled, "status": value.Status, "latency_ms": value.LatencyMS, "updated_at": value.UpdatedAt}
 }
 
 type alertCreateRequest struct {

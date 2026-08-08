@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/daniel1rosso/monitor-esp32-lcd/backend/internal/adapters/collectors"
 	"github.com/daniel1rosso/monitor-esp32-lcd/backend/internal/adapters/httpapi"
 	"github.com/daniel1rosso/monitor-esp32-lcd/backend/internal/adapters/mqtt"
 	"github.com/daniel1rosso/monitor-esp32-lcd/backend/internal/adapters/persistence"
@@ -114,7 +115,7 @@ func runServer(ctx context.Context, info buildinfo.Info) error {
 		mqttPublicURL = "ws://localhost:9001/mqtt"
 	}
 	content := application.DeviceContentConfig{Timezone: cfg.Platform.Timezone, MQTTURL: mqttPublicURL, Orientation: cfg.Devices.Display.Orientation, RefreshInterval: cfg.Devices.RefreshInterval.Duration, DashboardTTL: cfg.Devices.DashboardTTL.Duration, Width: cfg.Devices.Display.Width, Height: cfg.Devices.Display.Height, Brightness: cfg.Devices.Display.Brightness, MaxScreens: cfg.Devices.MaxScreens, MaxBytes: cfg.Devices.MaxDashboardSize}
-	service := application.New(application.Dependencies{Products: store, Services: store, Profiles: store, Devices: store, Users: store, Sessions: store, Alerts: store, Outbox: store, Snapshots: store, Hasher: security.Argon2ID{}, Tokens: tokens, IDs: ids, MQTT: credentialManager, DeviceTokenTTL: cfg.Devices.AccessTokenTTL.Duration, AlertDuration: cfg.Devices.AlertDuration.Duration, Styles: styles, Content: content})
+	service := application.New(application.Dependencies{Products: store, Services: store, Profiles: store, Devices: store, Users: store, Sessions: store, Alerts: store, Outbox: store, Snapshots: store, Operations: store, Hasher: security.Argon2ID{}, Tokens: tokens, IDs: ids, MQTT: credentialManager, DeviceTokenTTL: cfg.Devices.AccessTokenTTL.Duration, AlertDuration: cfg.Devices.AlertDuration.Duration, Styles: styles, Content: content})
 	if err := service.BootstrapAdmin(ctx, os.Getenv("DESK_BOOTSTRAP_ADMIN_EMAIL"), os.Getenv("DESK_BOOTSTRAP_ADMIN_PASSWORD")); err != nil {
 		return fmt.Errorf("bootstrap admin: %w", err)
 	}
@@ -124,6 +125,16 @@ func runServer(ctx context.Context, info buildinfo.Info) error {
 	httpConfig.IdleTimeout = cfg.HTTP.IdleTimeout.Duration
 	httpConfig.AllowedOrigins = cfg.HTTP.AllowedOrigins
 	httpConfig.PublicURL = cfg.Platform.PublicURL
+	integrations := httpapi.IntegrationConfig{
+		GitHubWebhookSecret: optionalSecret(cfg.Integrations.GitHub.WebhookSecret, logger),
+		GitHubActionsToken:  optionalSecret(cfg.Integrations.GitHub.ActionsToken, logger),
+		UptimeToken:         optionalSecret(cfg.Integrations.UptimeKuma.Token, logger),
+		UptimeMonitors:      make(map[string]application.MonitorTarget, len(cfg.Integrations.UptimeKuma.Monitors)),
+	}
+	for _, monitor := range cfg.Integrations.UptimeKuma.Monitors {
+		integrations.UptimeMonitors[monitor.Name] = application.MonitorTarget{ProductKey: monitor.ProductKey, ServiceKey: monitor.ServiceKey}
+	}
+	collectors.Run(ctx, store, ids, logger, collectors.NewCotizacionYa(cfg.Collectors.CotizacionYa, ids), collectors.NewOpenMeteo(cfg.Collectors.OpenMeteo, ids))
 	if mqttErr == nil {
 		publisher, err := mqtt.NewPublisher(mqttConfig)
 		if err != nil {
@@ -133,7 +144,16 @@ func runServer(ctx context.Context, info buildinfo.Info) error {
 		}
 	}
 	logger.Info("backend starting", "version", info.Version, "storage", cfg.Storage.Driver)
-	return httpapi.Run(ctx, httpConfig, httpapi.Dependencies{Application: service, Health: store, Logger: logger, Build: info})
+	return httpapi.Run(ctx, httpConfig, httpapi.Dependencies{Application: service, Health: store, Logger: logger, Build: info, Integrations: integrations})
+}
+
+func optionalSecret(reference string, logger interface{ Warn(string, ...any) }) string {
+	value, err := config.ResolveSecret(reference)
+	if err != nil {
+		logger.Warn("optional integration disabled", "reference", reference, "error", err)
+		return ""
+	}
+	return value
 }
 
 func printUsage(output io.Writer) {

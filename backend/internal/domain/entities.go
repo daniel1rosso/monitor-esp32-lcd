@@ -263,3 +263,17 @@ type OutboxEvent struct {
 	PublishedAt        *time.Time
 	CreatedAt          time.Time
 }
+
+type CollectorRun struct {
+	ID, Collector, Status, ErrorCode string
+	ProductID                        *string
+	StartedAt                        time.Time
+	FinishedAt                       *time.Time
+	RecordsWritten                   int
+}
+
+type WebhookDelivery struct {
+	ID, Provider, DeliveryID, PayloadHash, Status string
+	ReceivedAt                                    time.Time
+	ProcessedAt                                   *time.Time
+}

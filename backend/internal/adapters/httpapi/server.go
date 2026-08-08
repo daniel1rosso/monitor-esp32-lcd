@@ -37,18 +37,27 @@ type Config struct {
 }
 
 type Dependencies struct {
-	Application *application.Service
-	Health      ports.HealthChecker
-	Logger      *slog.Logger
-	Build       buildinfo.Info
+	Application  *application.Service
+	Health       ports.HealthChecker
+	Logger       *slog.Logger
+	Build        buildinfo.Info
+	Integrations IntegrationConfig
+}
+
+type IntegrationConfig struct {
+	GitHubWebhookSecret string
+	GitHubActionsToken  string
+	UptimeToken         string
+	UptimeMonitors      map[string]application.MonitorTarget
 }
 
 type API struct {
-	app      *application.Service
-	health   ports.HealthChecker
-	logger   *slog.Logger
-	build    buildinfo.Info
-	requests atomic.Uint64
+	app          *application.Service
+	health       ports.HealthChecker
+	logger       *slog.Logger
+	build        buildinfo.Info
+	requests     atomic.Uint64
+	integrations IntegrationConfig
 }
 
 type healthResponse struct {
@@ -86,7 +95,7 @@ func ConfigFromEnvironment() Config {
 }
 
 func Run(ctx context.Context, config Config, dependencies Dependencies) error {
-	api := &API{app: dependencies.Application, health: dependencies.Health, logger: dependencies.Logger, build: dependencies.Build}
+	api := &API{app: dependencies.Application, health: dependencies.Health, logger: dependencies.Logger, build: dependencies.Build, integrations: dependencies.Integrations}
 	publicServer := newServer(config.PublicAddress, api.publicHandler(config), config)
 	managementServer := newServer(config.ManagementAddress, api.managementHandler(), config)
 	errorsChannel := make(chan error, 2)
@@ -146,6 +155,9 @@ func (api *API) publicHandler(config Config) http.Handler {
 	v1.POST("/auth/logout", api.authRequired(application.UserAudience), api.logout(config.PublicURL))
 	v1.GET("/auth/me", api.authRequired(application.UserAudience), api.me)
 	v1.POST("/device/auth/token", api.deviceToken(config.PublicURL))
+	v1.POST("/events/github", api.githubWebhook)
+	v1.POST("/events/github/actions", api.githubActions)
+	v1.POST("/events/uptime", api.uptimeEvent)
 	device := v1.Group("/device", api.authRequired(application.DeviceAudience))
 	device.GET("/dashboard", api.deviceDashboard)
 	device.GET("/config", api.deviceConfig)
@@ -166,6 +178,11 @@ func (api *API) publicHandler(config Config) http.Handler {
 	alerts.POST("", api.adminRequired(), api.createAlert)
 	alerts.POST("/:alertId/acknowledge", api.adminRequired(), api.acknowledgeAlert)
 	alerts.POST("/:alertId/resolve", api.adminRequired(), api.resolveAlert)
+	deployments := v1.Group("/deployments", api.authRequired(application.UserAudience))
+	deployments.GET("", api.listDeployments)
+	markets := v1.Group("/markets", api.authRequired(application.UserAudience))
+	markets.GET("/quotes", api.listMarketQuotes)
+	v1.GET("/weather", api.authRequired(application.UserAudience), api.getWeather)
 	devices := v1.Group("/devices", api.authRequired(application.UserAudience), api.adminRequired())
 	devices.GET("", api.listDevices)
 	devices.POST("", api.createDevice)
@@ -243,7 +260,7 @@ type loginRequest struct {
 func (api *API) login(publicURL string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var request loginRequest
-		if !api.decode(c, &request, 4<<10) || request.Email == "" || len(request.Password) < 12 {
+		if !api.decode(c, &request, 4<<10) || request.Email == "" || len(request.Password) < 8 {
 			api.writeProblem(c, domain.ErrInvalid)
 			return
 		}

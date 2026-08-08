@@ -102,11 +102,25 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["key", "name", "enabled"],
+        "required": ["key", "name", "enabled", "services"],
         "properties": {
           "key": {"$ref": "#/$defs/key"},
           "name": {"type": "string", "minLength": 1, "maxLength": 100},
-          "enabled": {"type": "boolean"}
+          "enabled": {"type": "boolean"},
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["key", "name", "kind", "enabled"],
+              "properties": {
+                "key": {"$ref": "#/$defs/key"},
+                "name": {"type": "string", "minLength": 1, "maxLength": 100},
+                "kind": {"type": "string", "minLength": 1, "maxLength": 64},
+                "enabled": {"type": "boolean"}
+              }
+            }
+          }
         }
       }
     },
@@ -215,8 +229,23 @@
         "uptime_kuma": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["token"],
-          "properties": {"token": {"$ref": "#/$defs/secretRef"}}
+          "required": ["token", "monitors"],
+          "properties": {
+            "token": {"$ref": "#/$defs/secretRef"},
+            "monitors": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["name", "product_key", "service_key"],
+                "properties": {
+                  "name": {"type": "string", "minLength": 1},
+                  "product_key": {"$ref": "#/$defs/key"},
+                  "service_key": {"$ref": "#/$defs/key"}
+                }
+              }
+            }
+          }
         }
       }
     }

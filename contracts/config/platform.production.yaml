@@ -47,15 +47,50 @@ devices:
     success: {color: "#30D158", icon: check-circle, led_rgb: "#00FF55", sound: none}
 
 products:
+  - key: aula-mente-activa
+    name: Aula Mente Activa
+    enabled: true
+    services: [{key: web, name: Sitio web, kind: http, enabled: true}]
+  - key: colegio-psp-vm
+    name: Colegio PSP VM
+    enabled: true
+    services: [{key: web, name: Sitio web, kind: http, enabled: true}]
+  - key: cotizacionya
+    name: CotizacionYa
+    enabled: true
+    services: [{key: web, name: Sitio web, kind: http, enabled: true}]
+  - key: crm-freshcode
+    name: CRM - FreshCode
+    enabled: true
+    services: [{key: web, name: Sitio web, kind: http, enabled: true}]
   - key: potrerito
     name: Potrerito
     enabled: true
+    services: [{key: web, name: Sitio web, kind: http, enabled: true}]
   - key: freshcode
     name: FreshCode
     enabled: true
+    services: [{key: web, name: Sitio web, kind: http, enabled: true}]
   - key: facturas
     name: Facturas-FreshCode
     enabled: true
+    services: [{key: web, name: Sitio web, kind: http, enabled: true}]
+  - key: mi-web
+    name: MI-WEB
+    enabled: true
+    services: [{key: web, name: Sitio web, kind: http, enabled: true}]
+  - key: recursos-mente-activa
+    name: Recursos Mente Activa
+    enabled: true
+    services: [{key: web, name: Sitio web, kind: http, enabled: true}]
+  - key: sorteos-inmobiliarios
+    name: Sorteos Inmobiliarios
+    enabled: true
+    services: [{key: web, name: Sitio web, kind: http, enabled: true}]
+  - key: viita
+    name: VIITA
+    enabled: true
+    services: [{key: web, name: Sitio web, kind: http, enabled: true}]
 
 profiles:
   - key: operations
@@ -109,3 +144,14 @@ integrations:
     actions_token: "${secret:GITHUB_ACTIONS_TOKEN}"
   uptime_kuma:
     token: "${secret:UPTIME_KUMA_TOKEN}"
+    monitors:
+      - {name: Aula Mente Activa, product_key: aula-mente-activa, service_key: web}
+      - {name: Colegio PSP VM, product_key: colegio-psp-vm, service_key: web}
+      - {name: CotizacionYa, product_key: cotizacionya, service_key: web}
+      - {name: CRM - FreshCode, product_key: crm-freshcode, service_key: web}
+      - {name: FreshCode, product_key: freshcode, service_key: web}
+      - {name: MI-WEB, product_key: mi-web, service_key: web}
+      - {name: Potrerito, product_key: potrerito, service_key: web}
+      - {name: Recursos Mente Activa, product_key: recursos-mente-activa, service_key: web}
+      - {name: Sorteos Inmobiliarios, product_key: sorteos-inmobiliarios, service_key: web}
+      - {name: VIITA, product_key: viita, service_key: web}

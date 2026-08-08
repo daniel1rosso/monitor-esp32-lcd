@@ -83,8 +83,8 @@ bearer e `Idempotency-Key`. `heartbeat.status=1` se normaliza como operational y
 configurable por ID externo.
 
 Outage abre o actualiza una alerta por fingerprint estable; volver a operational la
-resuelve. Ambos cambios crean outbox events. Un monitor desconocido se acepta y
-audita, pero no modifica servicios hasta tener asociación.
+resuelve. Ambos cambios crean outbox events. Un monitor desconocido se acepta y se
+registra en el log estructurado, pero no modifica servicios hasta tener asociación.
 
 ## Scheduler y concurrencia
 

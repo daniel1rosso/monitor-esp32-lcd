@@ -32,6 +32,7 @@ type Service struct {
 	alerts         ports.AlertRepository
 	outbox         ports.OutboxRepository
 	snapshots      ports.SnapshotRepository
+	operations     ports.OperationsRepository
 	hasher         ports.PasswordHasher
 	tokens         ports.TokenIssuer
 	ids            ports.IDGenerator
@@ -58,6 +59,7 @@ type Dependencies struct {
 	Alerts         ports.AlertRepository
 	Outbox         ports.OutboxRepository
 	Snapshots      ports.SnapshotRepository
+	Operations     ports.OperationsRepository
 	Hasher         ports.PasswordHasher
 	Tokens         ports.TokenIssuer
 	IDs            ports.IDGenerator
@@ -69,7 +71,7 @@ type Dependencies struct {
 }
 
 func New(dependencies Dependencies) *Service {
-	return &Service{products: dependencies.Products, services: dependencies.Services, profiles: dependencies.Profiles, devices: dependencies.Devices, users: dependencies.Users, sessions: dependencies.Sessions, alerts: dependencies.Alerts, outbox: dependencies.Outbox, snapshots: dependencies.Snapshots, hasher: dependencies.Hasher, tokens: dependencies.Tokens, ids: dependencies.IDs, mqtt: dependencies.MQTT, deviceTokenTTL: dependencies.DeviceTokenTTL, alertDuration: dependencies.AlertDuration, styles: dependencies.Styles, content: dependencies.Content}
+	return &Service{products: dependencies.Products, services: dependencies.Services, profiles: dependencies.Profiles, devices: dependencies.Devices, users: dependencies.Users, sessions: dependencies.Sessions, alerts: dependencies.Alerts, outbox: dependencies.Outbox, snapshots: dependencies.Snapshots, operations: dependencies.Operations, hasher: dependencies.Hasher, tokens: dependencies.Tokens, ids: dependencies.IDs, mqtt: dependencies.MQTT, deviceTokenTTL: dependencies.DeviceTokenTTL, alertDuration: dependencies.AlertDuration, styles: dependencies.Styles, content: dependencies.Content}
 }
 
 type ProductInput struct {
@@ -92,7 +94,38 @@ func (service *Service) GetProduct(ctx context.Context, id string) (domain.Produ
 	return service.products.GetProduct(ctx, id)
 }
 func (service *Service) ListProducts(ctx context.Context, limit int, cursor string) ([]domain.Product, string, error) {
-	return service.products.ListProducts(ctx, normalizeLimit(limit), cursor)
+	items, next, err := service.products.ListProducts(ctx, normalizeLimit(limit), cursor)
+	if err != nil {
+		return nil, "", err
+	}
+	for index := range items {
+		services, _, listErr := service.services.ListServices(ctx, 100, "", items[index].ID)
+		if listErr != nil {
+			return nil, "", listErr
+		}
+		items[index].Health = aggregateHealth(services)
+	}
+	return items, next, nil
+}
+
+func aggregateHealth(values []domain.Service) domain.ServiceState {
+	if len(values) == 0 {
+		return domain.ServiceUnknown
+	}
+	result := domain.ServiceOperational
+	for _, value := range values {
+		switch value.Status {
+		case domain.ServiceOutage:
+			return domain.ServiceOutage
+		case domain.ServiceDegraded:
+			result = domain.ServiceDegraded
+		case domain.ServiceUnknown:
+			if result == domain.ServiceOperational {
+				result = domain.ServiceUnknown
+			}
+		}
+	}
+	return result
 }
 
 type ProductPatch struct {
@@ -436,8 +469,8 @@ func (service *Service) BootstrapAdmin(ctx context.Context, email, password stri
 	if email == "" && password == "" {
 		return nil
 	}
-	if email == "" || len(password) < 12 {
-		return fmt.Errorf("bootstrap admin requires email and a password of at least 12 characters")
+	if email == "" || len(password) < 8 {
+		return fmt.Errorf("bootstrap admin requires email and a password of at least 8 characters")
 	}
 	_, err := service.users.GetUserByEmail(ctx, email)
 	if err == nil {

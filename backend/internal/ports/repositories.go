@@ -24,16 +24,31 @@ type ProductRepository interface {
 type ServiceRepository interface {
 	CreateService(context.Context, domain.Service) error
 	GetService(context.Context, string) (domain.Service, error)
+	GetServiceByProductAndKey(context.Context, string, string) (domain.Service, error)
 	ListServices(context.Context, int, string, string) ([]domain.Service, string, error)
 	UpdateService(context.Context, domain.Service) error
 	ArchiveService(context.Context, string, time.Time) error
 	RecordServiceStatus(context.Context, domain.ServiceStatus) error
 }
 
+type OperationsRepository interface {
+	SaveMarketQuotes(context.Context, []domain.MarketQuote) error
+	SaveWeather(context.Context, domain.WeatherObservation) error
+	SaveDeployment(context.Context, domain.Deployment) error
+	ListDeployments(context.Context, int, string) ([]domain.Deployment, string, error)
+	ListMarketQuotes(context.Context, int, string) ([]domain.MarketQuote, error)
+	WeatherByLocation(context.Context, string) (*domain.WeatherObservation, error)
+	RecordCollectorRun(context.Context, domain.CollectorRun) error
+	CreateOutbox(context.Context, domain.OutboxEvent) error
+	RegisterWebhookDelivery(context.Context, domain.WebhookDelivery) (bool, error)
+	DeleteWebhookDelivery(context.Context, string, string) error
+}
+
 type AlertFilter struct{ State, Priority, ProductID string }
 type AlertRepository interface {
 	CreateAlertWithOutbox(context.Context, domain.Alert, []domain.OutboxEvent) error
 	GetAlert(context.Context, string) (domain.Alert, error)
+	GetOpenAlertByFingerprint(context.Context, string) (domain.Alert, error)
 	ListAlerts(context.Context, int, string, AlertFilter) ([]domain.Alert, string, error)
 	TransitionAlertWithOutbox(context.Context, string, domain.AlertState, time.Time, []domain.OutboxEvent) (domain.Alert, error)
 }

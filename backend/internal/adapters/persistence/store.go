@@ -533,13 +533,26 @@ func (s *Store) RevokeRefreshSession(ctx context.Context, hash string, at time.T
 func (s *Store) Seed(ctx context.Context, cfg config.Config, ids ports.IDGenerator, now time.Time) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for _, item := range cfg.Products {
-			var count int64
-			if err := tx.Model(&productRow{}).Where("key = ?", item.Key).Count(&count).Error; err != nil {
+			var product productRow
+			err := tx.Where("key = ?", item.Key).First(&product).Error
+			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 				return err
 			}
-			if count == 0 {
-				if err := tx.Create(productRow{ID: ids.New(), Key: item.Key, Name: item.Name, Enabled: item.Enabled, CreatedAt: now, UpdatedAt: now}).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				product = productRow{ID: ids.New(), Key: item.Key, Name: item.Name, Enabled: item.Enabled, CreatedAt: now, UpdatedAt: now}
+				if err := tx.Create(product).Error; err != nil {
 					return err
+				}
+			}
+			for _, configured := range item.Services {
+				var count int64
+				if err := tx.Model(&serviceRow{}).Where("product_id = ? AND key = ?", product.ID, configured.Key).Count(&count).Error; err != nil {
+					return err
+				}
+				if count == 0 {
+					if err := tx.Create(serviceRow{ID: ids.New(), ProductID: product.ID, Key: configured.Key, Name: configured.Name, Kind: configured.Kind, Enabled: configured.Enabled, CreatedAt: now, UpdatedAt: now}).Error; err != nil {
+						return err
+					}
 				}
 			}
 		}

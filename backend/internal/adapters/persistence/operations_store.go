@@ -61,6 +61,17 @@ func (s *Store) GetService(ctx context.Context, id string) (domain.Service, erro
 	}
 	return serviceDomain(row, status), nil
 }
+func (s *Store) GetServiceByProductAndKey(ctx context.Context, productID, key string) (domain.Service, error) {
+	var row serviceRow
+	if err := s.db.WithContext(ctx).Where("product_id = ? AND key = ? AND archived_at IS NULL", productID, key).First(&row).Error; err != nil {
+		return domain.Service{}, translate(err)
+	}
+	status, err := s.latestServiceStatus(ctx, row.ID)
+	if err != nil {
+		return domain.Service{}, err
+	}
+	return serviceDomain(row, status), nil
+}
 func (s *Store) ListServices(ctx context.Context, limit int, cursor, productID string) ([]domain.Service, string, error) {
 	query := s.db.WithContext(ctx).Where("archived_at IS NULL")
 	if cursor != "" {
@@ -157,6 +168,11 @@ func (s *Store) CreateAlertWithOutbox(ctx context.Context, alert domain.Alert, e
 func (s *Store) GetAlert(ctx context.Context, id string) (domain.Alert, error) {
 	var row alertRow
 	err := s.db.WithContext(ctx).Where("id = ?", id).First(&row).Error
+	return alertDomain(row), translate(err)
+}
+func (s *Store) GetOpenAlertByFingerprint(ctx context.Context, fingerprint string) (domain.Alert, error) {
+	var row alertRow
+	err := s.db.WithContext(ctx).Where("fingerprint = ? AND state != ?", fingerprint, string(domain.AlertResolved)).First(&row).Error
 	return alertDomain(row), translate(err)
 }
 func (s *Store) ListAlerts(ctx context.Context, limit int, cursor string, filter ports.AlertFilter) ([]domain.Alert, string, error) {

@@ -30,15 +30,15 @@ Estado interno:
 - 4.1 configuración, migraciones, auth, productos, perfiles y dispositivos: completado.
 - 4.2 servicios, alertas, outbox/MQTT y Dynamic Security: completado.
 - 4.3 dashboard y configuración efectiva del dispositivo: completado.
-- 4.4 colectores, webhooks y datos históricos: pendiente.
+- 4.4 colectores, webhooks y datos históricos: completado.
 - 4.5 administración restante, hardening y gate OpenAPI completo: pendiente.
 
 ## 5. Frontend — centro visual completado
 
-Shell responsive; Dashboard/actividad; Products, Alerts, Deployments, Markets,
-Weather, Devices, Settings y simulador LCD. React Query consume la API y degrada
-explícitamente a datos de demostración si no existe sesión. Gate actual: lint,
-TypeScript, build y Vitest. Quedan como hardening la pantalla de login, mutaciones
+Shell responsive; login y renovación de sesión; Dashboard/actividad; Products,
+Alerts, Deployments, Markets, Weather, Devices, Settings y simulador LCD. React
+Query consume exclusivamente la API real y distingue datos ausentes de errores.
+Gate actual: lint, TypeScript, build y Vitest. Quedan como hardening las mutaciones
 administrativas completas y Playwright.
 
 ## 6. Firmware contractual — completada
