@@ -27,7 +27,7 @@ export async function login(email:string,password:string){
 }
 export async function logout(){return api<void>('/auth/logout',{method:'POST'})}
 export type Product={id:string;key:string;name:string;description:string;enabled:boolean;health:string}
-export type Service={id:string;product_id:string;key:string;name:string;kind:string;endpoint:string|null;enabled:boolean;status:string;latency_ms:number|null}
+export type Service={id:string;product_id:string;key:string;name:string;kind:string;endpoint:string|null;enabled:boolean;status:string;latency_ms:number|null;updated_at:string}
 export type Alert={id:string;priority:string;state:string;title:string;message:string}
 export type Device={id:string;device_id:string;name:string;state:string;firmware_version:string|null}
 export type Deployment={id:string;product_id:string|null;repository:string;branch:string;workflow:string;status:string;commit_sha:string;commit_message:string;author:string;started_at:string;finished_at:string|null;html_url:string|null}

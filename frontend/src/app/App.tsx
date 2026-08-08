@@ -8,6 +8,7 @@ import { DeviceShowcase } from '../features/device-preview/DeviceShowcase'
 
 const pages = [
   ['dashboard', 'Centro de monitoreo', 'activity'], ['products', 'Productos', 'box'],
+  ['services', 'Servicios', 'server'],
   ['alerts', 'Alertas', 'alert'], ['deployments', 'Deployments', 'code'],
   ['markets', 'Mercados', 'dollar'], ['weather', 'Clima', 'cloud'],
   ['devices', 'Dispositivos', 'server'], ['preview', 'Simulador LCD', 'message'],
@@ -61,6 +62,7 @@ function PageContent({page,products,services,alerts,devices,deployments,quotes,w
   if(page==='preview') return <DeviceShowcase/>
   if(page==='dashboard') return <Dashboard products={products} services={services} alerts={alerts} devices={devices} deployments={deployments}/>
   if(page==='products') return <ResourcePage eyebrow="Portfolio" title="Productos configurados" action="Nuevo producto"><DataTable headers={['Producto','Identificador','Estado','Descripción']} rows={products.map(p=>[p.name,p.key,<State key={p.id} value={p.health}/>,p.description||'Sin descripción'])}/></ResourcePage>
+  if(page==='services') return <ServicePage products={products} values={services}/>
   if(page==='alerts') return <ResourcePage eyebrow="Incidentes" title="Alertas activas" action="Crear alerta"><DataTable headers={['Prioridad','Título','Estado','Mensaje']} rows={alerts.length?alerts.map(a=>[<State key={a.id} value={a.priority}/>,a.title,a.state,a.message]):[[<State key="none" value="success"/>,'Sin alertas activas','—','La plataforma no reporta incidentes']]}/></ResourcePage>
   if(page==='devices') return <ResourcePage eyebrow="Fleet" title="Dispositivos registrados" action="Provisionar dispositivo"><DataTable headers={['Dispositivo','ID','Estado','Firmware']} rows={devices.length?devices.map(d=>[d.name,d.device_id,<State key={d.id} value={d.state}/>,d.firmware_version??'Sin reporte']):[['Sin dispositivos','—',<State key="off" value="offline"/>,'Provisioná el primer ESP32']]}/></ResourcePage>
   if(page==='deployments') return <DeploymentPage values={deployments}/>
@@ -84,6 +86,7 @@ function State({value}:{value:string}) { const label:{[k:string]:string}={operat
 function Metric({icon,label,value,detail}:{icon:'box'|'server'|'alert'|'activity';label:string;value:string|number;detail:string}) { return <div className="metric-card"><span><Icon name={icon}/></span><small>{label}</small><strong>{value}</strong><p>{detail}</p></div> }
 function PanelTitle({title,subtitle}:{title:string;subtitle:string}) { return <div className="panel-title"><div><h3>{title}</h3><p>{subtitle}</p></div><button>•••</button></div> }
 function DeploymentPage({values}:{values:Deployment[]}){return <ResourcePage eyebrow="CI/CD" title="Deployments recientes" action="Configurar webhook"><DataTable headers={['Repositorio','Workflow','Estado','Commit / autor']} rows={values.length?values.map(value=>[`${value.repository} · ${value.branch}`,value.workflow,<State key={value.id} value={value.status}/>,`${value.commit_sha.slice(0,8)} · ${value.author}`]):[['Sin deployments','—',<State key="empty" value="unknown"/>,'Esperando GitHub Actions']]}/></ResourcePage>}
+function ServicePage({products,values}:{products:Product[];values:Service[]}){const names=new Map(products.map(product=>[product.id,product.name]));return <ResourcePage eyebrow="Uptime Kuma" title="Servicios monitoreados" action="Configurar monitor"><DataTable headers={['Producto / servicio','Endpoint','Estado','Última señal']} rows={values.map(value=>[`${names.get(value.product_id)??'Producto'} · ${value.name}`,value.endpoint??'Esperando URL de Uptime Kuma',<State key={value.id} value={value.status}/>,value.status==='unknown'?'Esperando primer evento':`${value.latency_ms??'—'} ms · ${relativeTime(value.updated_at)}`])}/></ResourcePage>}
 function MarketPage({values}:{values:MarketQuote[]}){
   const bySymbol=new Map<string,MarketQuote>();for(const value of values)if(!bySymbol.has(value.symbol))bySymbol.set(value.symbol,value);const latest=[...bySymbol.values()]
   const names:Record<string,string>={USD_BLUE:'Dólar Blue',BTCUSDT:'Bitcoin',XRPUSDT:'XRP'}
