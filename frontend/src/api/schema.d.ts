@@ -845,14 +845,14 @@ export interface components {
                 id: number | string;
                 name: string;
                 url?: string | null;
-            };
+            } | null;
             heartbeat: {
                 /** @enum {integer} */
                 status: 0 | 1;
                 time: string;
                 ping?: number | null;
                 msg?: string | null;
-            };
+            } | null;
             msg: string;
         };
         StreamEvent: {

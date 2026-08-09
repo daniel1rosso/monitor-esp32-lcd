@@ -12,6 +12,9 @@ Crear una notificación de tipo **Webhook** con estos valores:
 - body: preset JSON/default de Uptime Kuma (`monitor`, `heartbeat`, `msg`)
 - header adicional: `Authorization: Bearer <UPTIME_KUMA_TOKEN>`
 
+El botón **Probar** envía `monitor` y `heartbeat` como `null`; el backend lo acepta
+como prueba de conectividad sin cambiar el estado de ningún servicio.
+
 Asignar esa notificación a los monitores. Sus nombres deben coincidir con
 `integrations.uptime_kuma.monitors` en
 `contracts/config/platform.production.yaml`. La URL que Kuma ya conoce se guarda

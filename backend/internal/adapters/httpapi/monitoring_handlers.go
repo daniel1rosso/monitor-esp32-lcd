@@ -59,19 +59,23 @@ func (api *API) getWeather(c *gin.Context) {
 	c.JSON(http.StatusOK, weatherDTO(*value))
 }
 
+type uptimeMonitor struct {
+	ID   any     `json:"id"`
+	Name string  `json:"name"`
+	URL  *string `json:"url"`
+}
+
+type uptimeHeartbeat struct {
+	Status int      `json:"status"`
+	Time   string   `json:"time"`
+	Ping   *float64 `json:"ping"`
+	Msg    *string  `json:"msg"`
+}
+
 type uptimeEventRequest struct {
-	Monitor struct {
-		ID   any     `json:"id"`
-		Name string  `json:"name"`
-		URL  *string `json:"url"`
-	} `json:"monitor"`
-	Heartbeat struct {
-		Status int      `json:"status"`
-		Time   string   `json:"time"`
-		Ping   *float64 `json:"ping"`
-		Msg    *string  `json:"msg"`
-	} `json:"heartbeat"`
-	Msg string `json:"msg"`
+	Monitor   *uptimeMonitor   `json:"monitor"`
+	Heartbeat *uptimeHeartbeat `json:"heartbeat"`
+	Msg       string           `json:"msg"`
 }
 
 func (api *API) uptimeEvent(c *gin.Context) {
@@ -84,7 +88,18 @@ func (api *API) uptimeEvent(c *gin.Context) {
 		return
 	}
 	var request uptimeEventRequest
-	if json.Unmarshal(raw, &request) != nil || strings.TrimSpace(request.Monitor.Name) == "" || (request.Heartbeat.Status != 0 && request.Heartbeat.Status != 1) {
+	if json.Unmarshal(raw, &request) != nil {
+		api.writeProblem(c, domain.ErrInvalid)
+		return
+	}
+	// Uptime Kuma's notification test intentionally has no monitor or heartbeat.
+	// Accept it as a connectivity check without creating a delivery or changing state.
+	if request.Monitor == nil && request.Heartbeat == nil && strings.TrimSpace(request.Msg) != "" {
+		api.logger.Info("uptime notification test accepted")
+		c.Status(http.StatusAccepted)
+		return
+	}
+	if request.Monitor == nil || request.Heartbeat == nil || strings.TrimSpace(request.Monitor.Name) == "" || (request.Heartbeat.Status != 0 && request.Heartbeat.Status != 1) {
 		api.writeProblem(c, domain.ErrInvalid)
 		return
 	}

@@ -143,3 +143,40 @@ func TestMetrics(t *testing.T) {
 		t.Fatal("metrics response is empty")
 	}
 }
+
+func TestUptimeNotificationTestIsAccepted(t *testing.T) {
+	t.Parallel()
+
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/events/uptime", bytes.NewBufferString(`{"heartbeat":null,"monitor":null,"msg":"Testing"}`))
+	request.Header.Set("Authorization", "Bearer uptime-test-token")
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	api := &API{
+		logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
+		integrations: IntegrationConfig{UptimeToken: "uptime-test-token"},
+	}
+
+	api.publicHandler(Config{}).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want %d; body = %s", recorder.Code, http.StatusAccepted, recorder.Body.String())
+	}
+}
+
+func TestUptimeNotificationTestRequiresMatchingToken(t *testing.T) {
+	t.Parallel()
+
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/events/uptime", bytes.NewBufferString(`{"heartbeat":null,"monitor":null,"msg":"Testing"}`))
+	request.Header.Set("Authorization", "Bearer wrong-token")
+	recorder := httptest.NewRecorder()
+	api := &API{
+		logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
+		integrations: IntegrationConfig{UptimeToken: "uptime-test-token"},
+	}
+
+	api.publicHandler(Config{}).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d; body = %s", recorder.Code, http.StatusUnauthorized, recorder.Body.String())
+	}
+}

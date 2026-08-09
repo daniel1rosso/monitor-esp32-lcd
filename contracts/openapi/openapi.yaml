@@ -1081,14 +1081,14 @@ components:
       required: [monitor, heartbeat, msg]
       properties:
         monitor:
-          type: object
+          type: [object, 'null']
           required: [id, name]
           properties:
             id: {type: [integer, string]}
             name: {type: string}
             url: {type: [string, 'null']}
         heartbeat:
-          type: object
+          type: [object, 'null']
           required: [status, time]
           properties:
             status: {type: integer, enum: [0, 1]}
