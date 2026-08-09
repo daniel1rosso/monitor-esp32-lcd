@@ -1,0 +1,23 @@
+menu "Desk Monitor"
+
+    config DESK_WIFI_SSID
+        string "Wi-Fi SSID"
+        default ""
+
+    config DESK_WIFI_PASSWORD
+        string "Wi-Fi password"
+        default ""
+
+    config DESK_API_BASE_URL
+        string "Backend API base URL"
+        default "https://monitor.danielalbertorosso.com.ar/api/v1"
+
+    config DESK_DEVICE_ID
+        string "Device id (as provisioned in the fleet console)"
+        default ""
+
+    config DESK_DEVICE_SECRET
+        string "Device one-time secret (from the fleet console credentials file)"
+        default ""
+
+endmenu

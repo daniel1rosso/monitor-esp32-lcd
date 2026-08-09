@@ -159,11 +159,46 @@ func (app *Service) buildScreen(screen domain.Screen, products []domain.Product,
 		if weather == nil {
 			result.Payload = map[string]any{"location": "Sin datos", "temperature_c": 0, "apparent_temperature_c": 0, "condition_icon": "cloud-off", "daily_min_c": 0, "daily_max_c": 0, "precipitation_probability_percent": 0}
 		} else {
-			result.Title = weather.LocationName
+			result.Title = "Clima " + weather.LocationName
 			result.Payload = map[string]any{"location": weather.LocationName, "temperature_c": weather.TemperatureC, "apparent_temperature_c": weather.ApparentTemperatureC, "condition_icon": weatherIcon(weather.WeatherCode), "daily_min_c": floatValue(weather.DailyMinC), "daily_max_c": floatValue(weather.DailyMaxC), "precipitation_probability_percent": int(floatValue(weather.PrecipitationProbability))}
 		}
 	case "metric_list":
-		result.Payload = map[string]any{"items": []any{}}
+		title := stringConfig(config, "title")
+		items := []any{}
+		if stringConfig(config, "source") == "markets" {
+			if title == "" {
+				title = "Mercado"
+			}
+			for _, symbol := range []string{"BTCUSDT", "XRPUSDT", "USD_BLUE"} {
+				quote := selectQuote(quotes, symbol)
+				items = append(items, map[string]any{"label": marketLabel(symbol), "value": fmt.Sprintf("%.2f", quote.Last), "trend": trend(quote.ChangePercent), "color": trendColor(quote.ChangePercent)})
+			}
+		} else {
+			if title == "" {
+				title = "Servicios"
+			}
+			productNames := map[string]string{}
+			for _, product := range products {
+				productNames[product.ID] = product.Name
+			}
+			offset := intConfig(config, "offset")
+			for i, service := range services {
+				if i < offset {
+					continue
+				}
+				if len(items) >= 5 {
+					break
+				}
+				label := productNames[service.ProductID]
+				if label == "" {
+					label = service.Name
+				}
+				state := defaultState(service.Status)
+				items = append(items, map[string]any{"label": label, "value": stateLabel(state), "color": stateColor(state)})
+			}
+		}
+		result.Title = title
+		result.Payload = map[string]any{"items": items}
 	case "message":
 		result.Payload = map[string]any{"body": stringConfig(config, "body"), "icon": stringConfig(config, "icon")}
 	}
@@ -309,6 +344,56 @@ func floatValue(v *float64) float64 {
 		return 0
 	}
 	return *v
+}
+func marketLabel(symbol string) string {
+	switch symbol {
+	case "BTCUSDT":
+		return "BTC"
+	case "XRPUSDT":
+		return "XRP"
+	case "USD_BLUE":
+		return "Dólar blue"
+	}
+	return symbol
+}
+func trendColor(v float64) string {
+	if v > 0 {
+		return "#30D158"
+	}
+	if v < 0 {
+		return "#FF3B30"
+	}
+	return "#8E8E93"
+}
+func intConfig(v map[string]any, key string) int {
+	if n, ok := v[key].(float64); ok {
+		return int(n)
+	}
+	return 0
+}
+func stateLabel(v domain.ServiceState) string {
+	switch v {
+	case domain.ServiceOperational:
+		return "Operativo"
+	case domain.ServiceDegraded:
+		return "Degradado"
+	case domain.ServiceOutage:
+		return "Caído"
+	default:
+		return "Desconocido"
+	}
+}
+func stateColor(v domain.ServiceState) string {
+	switch v {
+	case domain.ServiceOperational:
+		return "#30D158"
+	case domain.ServiceDegraded:
+		return "#FFCC00"
+	case domain.ServiceOutage:
+		return "#FF3B30"
+	default:
+		return "#8E8E93"
+	}
 }
 func weatherIcon(code int) string {
 	if code == 0 {
